@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Website: vinkje "Personeelsshop" onder het websitedomein -->
+    <record id="view_website_form_afs_staff" model="ir.ui.view">
+        <field name="name">website.form.afs.staff</field>
+        <field name="model">website</field>
+        <field name="inherit_id" ref="website.view_website_form"/>
+        <field name="arch" type="xml">
+            <field name="domain" position="after">
+                <field name="afs_staff_shop"/>
+            </field>
+        </field>
+    </record>
+
+</odoo>

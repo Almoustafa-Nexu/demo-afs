@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Acties die aflopen sluiten in de webshop (zie ProductTemplate._sync_promo_availability).
+         Wijzigingen aan een actie werken meteen door; deze taak vangt het verstrijken van de tijd op. -->
+    <record id="ir_cron_sync_promo_availability" model="ir.cron">
+        <field name="name">Webshop: acties openen en sluiten</field>
+        <field name="model_id" ref="product.model_product_template"/>
+        <field name="state">code</field>
+        <field name="code">model._sync_promo_availability()</field>
+        <field name="interval_number">15</field>
+        <field name="interval_type">minutes</field>
+    </record>
+
+    <!-- Meteen één keer bijwerken bij installeren of upgraden -->
+    <function model="product.template" name="_sync_promo_availability"/>
+
+</odoo>

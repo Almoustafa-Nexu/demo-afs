@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Acties > Offertes bevestigen: na controle meerdere offertes tegelijk bevestigen.
+         Alleen offertes (concept of verstuurd); bevestigde orders blijven ongemoeid. -->
+    <record id="action_confirm_quotations" model="ir.actions.server">
+        <field name="name">Offertes bevestigen</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="binding_model_id" ref="sale.model_sale_order"/>
+        <field name="binding_view_types">list,kanban</field>
+        <field name="group_ids" eval="[(4, ref('sales_team.group_sale_salesman'))]"/>
+        <field name="state">code</field>
+        <field name="code">records.filtered_domain([('state', 'in', ('draft', 'sent'))]).action_confirm()</field>
+    </record>
+
+</odoo>

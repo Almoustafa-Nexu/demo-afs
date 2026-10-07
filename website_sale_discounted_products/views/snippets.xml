@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================
+         Blokken "Promoties" en "Shop" in Bewerken > Blokken > Webshop
+         ============================================================ -->
+
+    <!-- Tegel "Webshop" naast "Catalogus", met de twee blokken erin -->
+    <template id="snippets" inherit_id="website.snippets" name="Blokken Promoties en Shop">
+        <xpath expr="//t[@snippet-group='catalog']" position="after">
+            <t snippet-group="promotions" t-snippet="website.s_snippet_group" string="Webshop"
+               t-thumbnail="/website_sale_discounted_products/static/src/img/s_promotions.svg"/>
+        </xpath>
+        <xpath expr="//t[@t-snippet='website_sale.s_dynamic_snippet_products']" position="after">
+            <t t-snippet="website_sale_discounted_products.s_dynamic_snippet_promotions" string="Promoties" group="promotions">
+                <keywords>promo, promoties, promotie, korting, aanbieding, actie, sale, discount</keywords>
+            </t>
+            <t t-snippet="website_sale_discounted_products.s_dynamic_snippet_shop" string="Shop" group="promotions">
+                <keywords>shop, winkel, producten, assortiment, alle producten, catalogus</keywords>
+            </t>
+        </xpath>
+    </template>
+
+    <!-- Blok "Promoties": de producten die nu in promotie zijn -->
+    <template id="s_dynamic_snippet_promotions" name="Promoties">
+        <t t-call="website_sale_discounted_products.s_dynamic_snippet_webshop">
+            <t t-set="snippet_title">Promoties</t>
+            <t t-set="snippet_lead">Nu tijdelijk goedkoper.</t>
+            <t t-set="snippet_filter" t-value="request and request.env.ref('website_sale_discounted_products.dynamic_filter_discounted_products', raise_if_not_found=False)"/>
+            <t t-set="preview_items" t-value="request and request.env['product.template']._get_promotions_preview(4) or []"/>
+            <t t-set="preview_empty_text">Er zijn nu geen producten in promotie. Het blok vult zich vanzelf zodra je een korting instelt.</t>
+        </t>
+    </template>
+
+    <!-- Blok "Shop": alle producten, zonder die in promotie -->
+    <template id="s_dynamic_snippet_shop" name="Shop">
+        <t t-call="website_sale_discounted_products.s_dynamic_snippet_webshop">
+            <t t-set="snippet_title">Onze producten</t>
+            <t t-set="snippet_lead">Ontdek ons volledige assortiment.</t>
+            <t t-set="snippet_filter" t-value="request and request.env.ref('website_sale_discounted_products.dynamic_filter_shop_products', raise_if_not_found=False)"/>
+            <t t-set="preview_items" t-value="request and request.env['product.template']._get_shop_preview(4) or []"/>
+            <t t-set="preview_empty_text">Er zijn nog geen producten in de webshop.</t>
+        </t>
+    </template>
+
+    <!-- ============================================================
+         Bouwstenen van beide blokken
+         ============================================================ -->
+
+    <!-- Gemeenschappelijk: werkt als Odoo's blok "Producten" (zelfde opties en opmaak), met onze
+         productkaart. Elk blok geeft mee: snippet_title, snippet_lead, snippet_filter,
+         preview_items en preview_empty_text. -->
+    <template id="s_dynamic_snippet_webshop" name="Webshopblok">
+        <t t-set="default_design_classes"
+           t-value="request and request.env['website'].get_current_website().shop_opt_products_design_classes or ''"/>
+        <t t-if="'o_wsale_products_opt_layout_catalog' not in default_design_classes"
+           t-set="default_design_classes"
+           t-value="'o_wsale_products_opt_name_color_regular
+               o_wsale_products_opt_thumb_cover o_wsale_products_opt_img_secondary_show
+               o_wsale_products_opt_img_hover_zoom_out_light o_wsale_products_opt_cc1
+               o_wsale_products_opt_rounded_2 o_wsale_products_opt_layout_catalog
+               o_wsale_products_opt_design_thumbs o_wsale_products_opt_has_description
+               o_wsale_products_opt_name_size_body o_wsale_products_opt_actions_onhover
+               o_wsale_products_opt_wishlist_fixed o_wsale_products_opt_actions_theme
+               o_wsale_products_opt_has_cta'"/>
+        <t t-call="website_sale_discounted_products.s_dynamic_snippet_promotions_template">
+            <t t-set="snippet_name" t-value="'s_dynamic_snippet_products'"/>
+            <t t-set="snippet_filter_id" t-value="snippet_filter and snippet_filter.id"/>
+            <t t-set="snippet_classes" t-value="'oe_website_sale ' + default_design_classes"/>
+            <t t-set="main_page_url" t-value="'/shop'"/>
+            <t t-set="snippet_template_key" t-value="'website_sale_discounted_products.dynamic_filter_template_product_product_promo'"/>
+            <t t-call="website_sale_discounted_products.s_dynamic_snippet_preview"/>
+        </t>
+    </template>
+
+    <!-- Odoo's basisblok voor dynamische inhoud, met titel, filter en productkaart per blok -->
+    <template id="s_dynamic_snippet_promotions_template"
+              inherit_id="website.s_dynamic_snippet_template"
+              primary="True">
+        <xpath expr="//section[@t-att-data-snippet]" position="attributes">
+            <attribute name="t-att-data-filter-id">snippet_filter_id</attribute>
+            <attribute name="t-att-data-template-key">snippet_template_key</attribute>
+        </xpath>
+        <xpath expr="//section[contains(@t-attf-class, 's_dynamic_snippet_title')]/div[1]" position="replace">
+            <div>
+                <h2 class="h3" t-out="snippet_title"/>
+                <p class="lead" t-out="snippet_lead"/>
+            </div>
+        </xpath>
+    </template>
+
+    <!-- Voorbeeld in het venster "Blok invoegen": je echte producten in plaats van Odoo's
+         voorbeeldmeubels. Odoo haalt .s_dialog_preview weg zodra je het blok toevoegt;
+         daarna laadt het blok zelf de producten. -->
+    <template id="s_dynamic_snippet_preview" name="Voorbeeld dynamisch blok">
+        <div class="s_dialog_preview">
+            <div class="row">
+                <div t-foreach="preview_items" t-as="item" class="col-3">
+                    <div class="card border-0 bg-transparent">
+                        <div class="position-relative overflow-hidden rounded">
+                            <img class="card-img-top o_img_product_square o_img_product_cover h-auto" loading="lazy"
+                                 t-attf-src="/web/image/product.template/{{ item['product'].id }}/image_512"
+                                 t-att-alt="item['product'].name"/>
+                            <span t-if="item.get('discount')" class="badge text-bg-danger position-absolute top-0 start-0 m-2">-<t t-out="item['discount']"/>%</span>
+                        </div>
+                        <div class="h6 card-title p-3" t-out="item['product'].name"/>
+                    </div>
+                </div>
+                <div t-if="not preview_items" class="col-12">
+                    <p class="text-muted" t-out="preview_empty_text"/>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Productkaart van beide blokken: Odoo's standaardkaart, maar bij een korting met
+         percentage, oude prijs (Voorheen), nieuwe prijs (Nu) en een live teller. -->
+    <template id="dynamic_filter_template_product_product_promo"
+              inherit_id="website_sale.dynamic_filter_template_product_product_products_item"
+              primary="True"
+              name="Productkaart met korting">
+        <xpath expr="//div[hasclass('product_price')]" position="replace">
+            <div class="product_price" aria-label="Price information">
+                <t t-if="not data.get('prevent_zero_price_sale') and not data.get('is_sample')">
+                    <!-- Oude prijs: die van Odoo, of anders de verkoopprijs
+                         (Odoo geeft bij o.a. een vaste prijsregel geen oude prijs mee) -->
+                    <t t-set="promo_old" t-value="max(data.get('list_price') or 0, record.list_price or 0)"/>
+                    <t t-if="promo_old &gt; data['price']">
+                        <t t-set="promo_percent" t-value="max(1, int(round(100 * (promo_old - data['price']) / promo_old)))"/>
+                        <div class="o_promo_price d-flex flex-column align-items-start lh-sm">
+                            <span class="badge text-bg-danger mb-1">-<t t-out="promo_percent"/>%</span>
+                            <span class="text-muted small">Voorheen
+                                <del style="white-space: nowrap;"><span t-out="promo_old"
+                                    t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/></del>
+                            </span>
+                            <span>
+                                <span class="small">Nu</span>
+                                <span class="mb-0 fw-bold" name="product_price" t-out="data['price']"
+                                      t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
+                            </span>
+                            <div t-if="data.get('discount_end_date')"
+                                 class="o_promo_countdown small text-danger mt-1"
+                                 t-att-data-end="data['discount_end_date'].strftime('%Y-%m-%dT%H:%M:%SZ')">
+                                <i class="fa fa-clock-o me-1" role="img" aria-label="Tijd"/>Nog <span class="o_promo_countdown_value fw-bold"/>
+                            </div>
+                        </div>
+                    </t>
+                    <span t-else="" t-out="data['price']"
+                          class="mb-0 fw-bold"
+                          name="product_price"
+                          t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
+                </t>
+            </div>
+        </xpath>
+    </template>
+
+</odoo>

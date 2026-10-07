@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Magazijn: "Enkel voor deze apotheken" onder het adres -->
+    <record id="view_warehouse_form_afs_access" model="ir.ui.view">
+        <field name="name">stock.warehouse.form.afs.access</field>
+        <field name="model">stock.warehouse</field>
+        <field name="inherit_id" ref="stock.view_warehouse"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet//field[@name='partner_id']" position="after">
+                <field name="afs_partner_ids" widget="many2many_tags" placeholder="Iedereen"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

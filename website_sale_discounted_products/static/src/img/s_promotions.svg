@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="82" height="60" viewBox="0 0 82 60">
+  <defs>
+    <linearGradient id="promo-teal" x1="50%" x2="50%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#00A09D"/>
+      <stop offset="100%" stop-color="#00E2FF"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" fill-rule="evenodd">
+    <!-- drie productkaartjes -->
+    <g fill="#FFF">
+      <rect width="16" height="16" x="9" y="18" rx="2"/>
+      <rect width="16" height="16" x="33" y="18" rx="2"/>
+      <rect width="16" height="16" x="57" y="18" rx="2"/>
+    </g>
+    <g fill="url(#promo-teal)">
+      <path d="M13 30l3-5 2.5 3 2-2 3.5 4z"/>
+      <path d="M37 30l3-5 2.5 3 2-2 3.5 4z"/>
+      <path d="M61 30l3-5 2.5 3 2-2 3.5 4z"/>
+    </g>
+    <!-- oude prijs (doorstreept) en nieuwe prijs -->
+    <g fill="#FFF" opacity=".45">
+      <rect width="9" height="1" x="9" y="38"/>
+      <rect width="9" height="1" x="33" y="38"/>
+      <rect width="9" height="1" x="57" y="38"/>
+    </g>
+    <g fill="#FFF">
+      <rect width="11" height=".6" x="8" y="38.2"/>
+      <rect width="11" height=".6" x="32" y="38.2"/>
+      <rect width="11" height=".6" x="56" y="38.2"/>
+    </g>
+    <g fill="url(#promo-teal)">
+      <rect width="7" height="2" x="9" y="41"/>
+      <rect width="7" height="2" x="33" y="41"/>
+      <rect width="7" height="2" x="57" y="41"/>
+    </g>
+    <!-- prijskaartje met % -->
+    <g transform="translate(58 4)">
+      <path fill="url(#promo-teal)" d="M5 0h13a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5L0 6.5z"/>
+      <circle cx="4.5" cy="6.5" r="1.2" fill="#1F1F23"/>
+      <text x="12.5" y="10" fill="#FFF" font-family="Arial, Helvetica, sans-serif" font-size="9" font-weight="700" text-anchor="middle">%</text>
+    </g>
+  </g>
+</svg>

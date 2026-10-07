@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- /shop: promoproducten staan niet in de gewone lijst (controllers/shop.py),
+         maar in een eigen blok "Promoties" onderaan. -->
+    <template id="promotions_block" inherit_id="website_sale.products">
+
+        <!-- Promoproducten ophalen vóór de productlijst, zodat de melding
+             "geen producten" hieronder weet of er promoties zijn. -->
+        <xpath expr="//div[hasclass('o_wsale_products_grid_table_wrapper')]" position="before">
+            <t t-set="promo_products" t-value="request.env['product.template']._get_promo_products()"/>
+        </xpath>
+
+        <!-- "Geen producten" alleen tonen als er ook geen promoties zijn
+             (bv. een categorie met alleen promoproducten). -->
+        <xpath expr="//div[hasclass('o_wsale_products_grid_table_wrapper')]/following-sibling::div[@t-else][1]" position="attributes">
+            <attribute name="t-else"/>
+            <attribute name="t-elif">not promo_products</attribute>
+        </xpath>
+
+        <!-- Het blok "Promoties", met hetzelfde raster als de shop -->
+        <xpath expr="//div[@id='o_wsale_pager']" position="before">
+            <div t-if="promo_products" class="mt-4 mb-4">
+                <t t-set="promo_col_width" t-value="12 // ppr"/>
+                <t t-set="promo_col_md" t-value="hasLeftColumn and ('g-col-md-' + str(promo_col_width)) or (((not hasLeftColumn and ppr == 4) or (opt_wsale_fullwidth and ppr > 3)) and 'g-col-md-4') or 'g-col-md-6'"/>
+                <h1 class="fs-3 mt-5 mb-3">Promoties</h1>
+                <section
+                    t-attf-class="o_wsale_products_grid_table grid {{hasLeftColumn and 'o_wsale_products_grid_table_md'}} {{website.shop_opt_products_design_classes}}"
+                    t-attf-style="--o-wsale-ppr: {{ppr}}; --o-wsale-ppg: {{ppg}}; --o-wsale-products-grid-gap: {{gap}};"
+                >
+                    <t t-foreach="promo_products" t-as="product">
+                        <!-- Eigen prijzen: deze producten staan niet in de shoplijst, dus
+                             get_product_prices van de shop kent ze niet (KeyError). -->
+                        <t t-set="promo_price_map" t-value="product._get_sales_prices(website)"/>
+                        <t t-set="template_price_vals" t-value="promo_price_map[product.id]"/>
+                        <t t-set="ribbon" t-value="product._get_ribbon(price_vals=template_price_vals, auto_assign_ribbons=auto_assign_ribbons, variant=product.product_variant_id)"/>
+                        <t t-set="product_variants" t-value="{**product_variants, product: product.product_variant_id}"/>
+                        <t t-set="previewed_attribute_values" t-value="{**previewed_attribute_values, product.id: {}}"/>
+                        <div t-attf-class="oe_product g-col-6 {{promo_col_md}} g-col-lg-{{promo_col_width}}"
+                             style="--o-wsale-products-grid-product-col-height: 1;">
+                            <div class="o_wsale_product_grid_wrapper position-relative h-100 o_wsale_product_grid_wrapper_1_1">
+                                <t t-call="website_sale.products_item">
+                                    <!-- products_item vraagt zelf get_product_prices(product) op -->
+                                    <t t-set="get_product_prices" t-value="lambda p: promo_price_map[p.id]"/>
+                                    <!-- Oude prijs: die van Odoo, of anders de verkoopprijs -->
+                                    <t t-set="promo_old" t-value="template_price_vals.get('base_price') or product.list_price"/>
+                                    <t t-set="promo_new" t-value="template_price_vals['price_reduce']"/>
+                                    <t t-set="product_price">
+                                        <div class="product_price" aria-label="Price information">
+                                            <div t-if="promo_old and promo_old > promo_new" class="o_promo_price d-flex flex-column align-items-start lh-sm">
+                                                <span class="badge text-bg-danger mb-1">-<t t-out="max(1, int(round(100 * (promo_old - promo_new) / promo_old)))"/>%</span>
+                                                <span class="text-muted small">Voorheen
+                                                    <del style="white-space: nowrap;"><span t-out="promo_old"
+                                                        t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/></del>
+                                                </span>
+                                                <span>
+                                                    <span class="small">Nu</span>
+                                                    <span class="mb-0 fw-bold" t-out="promo_new"
+                                                          t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
+                                                </span>
+                                            </div>
+                                            <span t-else="" class="mb-0 fw-bold" t-out="promo_new"
+                                                  t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
+                                        </div>
+                                    </t>
+                                    <t t-set="design_field" t-value="website.shop_opt_products_design_classes"/>
+                                    <t t-set="product_href" t-value="product._get_product_url(category, product_query_params, grouped_attributes_values)"/>
+                                </t>
+                            </div>
+                        </div>
+                    </t>
+                </section>
+            </div>
+        </xpath>
+
+    </template>
+
+    <!-- Productpagina: bij een korting onder elkaar het percentage, de oude prijs (Voorheen),
+         de nieuwe prijs (Nu) en een live teller tot het einde van de actie.
+         Geldt voor producten zonder varianten; bij varianten verandert de prijs met de
+         gekozen variant en blijft Odoo's standaardweergave gelden. -->
+    <template id="product_price_promo" inherit_id="website_sale.product_price">
+
+        <!-- Is er een korting? Oude prijs: die van Odoo, of anders de verkoopprijs
+             (Odoo geeft bij o.a. een vaste prijsregel geen oude prijs mee). -->
+        <xpath expr="//div[@name='product_price_container']" position="before">
+            <t t-set="promo_old" t-value="max(combination_info['list_price'] or 0, product.list_price or 0)"/>
+            <t t-set="promo_show" t-value="not product.has_configurable_attributes and promo_old &gt; combination_info['price']"/>
+            <t t-set="promo_end" t-value="combination_info.get('discount_end_date')"/>
+        </xpath>
+
+        <!-- Bij een korting: onder elkaar, links uitgelijnd -->
+        <xpath expr="//div[@name='product_price_container']" position="attributes">
+            <attribute name="class"/>
+            <attribute name="t-attf-class">css_editable_mode_hidden d-flex gap-2 flex-wrap h5 mb-0 text-wrap {{'flex-column align-items-start' if promo_show else 'align-items-baseline justify-content-end'}}</attribute>
+        </xpath>
+
+        <!-- Prijs. Onze elementen staan los van Odoo's script dat de prijs bijwerkt (.oe_price). -->
+        <xpath expr="//span[hasclass('oe_price')]" position="replace">
+            <t t-if="promo_show">
+                <span class="badge text-bg-danger o_promo_badge">-<t t-out="max(1, int(round(100 * (promo_old - combination_info['price']) / promo_old)))"/>%</span>
+                <div class="d-flex align-items-baseline gap-2 o_promo_before">
+                    <span class="small text-muted">Voorheen</span>
+                    <span class="text-muted mb-0 h6 o_promo_old_price"
+                          style="text-decoration: line-through; white-space: nowrap;"
+                          t-out="promo_old"
+                          t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
+                </div>
+                <div class="d-flex align-items-baseline gap-2 o_promo_now">
+                    <span class="small text-muted">Nu</span>
+                    <span class="oe_price"
+                          style="white-space: nowrap;"
+                          t-out="combination_info['price']"
+                          t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
+                </div>
+            </t>
+            <span t-else="" class="oe_price"
+                  style="white-space: nowrap;"
+                  t-out="combination_info['price']"
+                  t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
+        </xpath>
+
+        <!-- Odoo's eigen oude prijs alleen tonen als wij geen korting tonen -->
+        <xpath expr="//span[@name='product_list_price']" position="replace">
+            <span t-if="not promo_show"
+                  t-attf-class="text-muted oe_default_price mb-0 h6 {{'' if combination_info['has_discounted_price'] else 'd-none'}}"
+                  style="text-decoration: line-through; white-space: nowrap;"
+                  t-out="combination_info['list_price']"
+                  t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"
+                  name="product_list_price"/>
+        </xpath>
+
+        <!-- Live teller tot het einde van de actie (static/src/js/promo_countdown.js) -->
+        <xpath expr="//div[@name='product_price_container']" position="after">
+            <div t-if="promo_show and promo_end"
+                 class="o_promo_countdown small text-danger mt-1"
+                 t-att-data-end="promo_end.strftime('%Y-%m-%dT%H:%M:%SZ')">
+                <i class="fa fa-clock-o me-1" role="img" aria-label="Tijd"/>Nog <span class="o_promo_countdown_value fw-bold"/>
+            </div>
+        </xpath>
+
+    </template>
+
+</odoo>

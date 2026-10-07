@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Filter "Promoties": producten die nu goedkoper zijn (models/website_snippet_filter.py) -->
+    <record id="dynamic_snippet_discounted_products_action" model="ir.actions.server">
+        <field name="name">Promoties</field>
+        <field name="model_id" ref="product.model_product_product"/>
+        <field name="state">code</field>
+        <field name="code">response = model.env['website.snippet.filter']._get_products('discounted')</field>
+    </record>
+
+    <record id="dynamic_filter_discounted_products" model="website.snippet.filter">
+        <field name="name">Promoties</field>
+        <field name="action_server_id" ref="dynamic_snippet_discounted_products_action"/>
+        <field name="field_names">display_name,description_sale,image_512</field>
+        <field name="limit" eval="16"/>
+        <field name="help">Producten die nu goedkoper zijn dan hun normale prijs, volgens de prijslijst van de bezoeker.</field>
+    </record>
+
+    <!-- Filter "Shop": alle producten behalve die in promotie -->
+    <record id="dynamic_snippet_shop_products_action" model="ir.actions.server">
+        <field name="name">Shop (zonder promoties)</field>
+        <field name="model_id" ref="product.model_product_product"/>
+        <field name="state">code</field>
+        <field name="code">response = model.env['website.snippet.filter']._get_products('shop')</field>
+    </record>
+
+    <record id="dynamic_filter_shop_products" model="website.snippet.filter">
+        <field name="name">Shop (zonder promoties)</field>
+        <field name="action_server_id" ref="dynamic_snippet_shop_products_action"/>
+        <field name="field_names">display_name,description_sale,image_512</field>
+        <field name="limit" eval="16"/>
+        <field name="help">Alle producten van de webshop, behalve die nu in promotie zijn.</field>
+    </record>
+
+</odoo>

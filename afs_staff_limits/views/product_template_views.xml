@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Product, tabblad Verkoop, blok Winkel: "Max. per personeelslid per jaar" -->
+    <record id="product_template_form_view_afs_staff" model="ir.ui.view">
+        <field name="name">product.template.form.afs.staff</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="website_sale.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <field name="website_ribbon_id" position="before">
+                <field name="afs_staff_year_limit"/>
+            </field>
+        </field>
+    </record>
+
+</odoo>
