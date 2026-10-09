@@ -121,34 +121,14 @@
               name="Productkaart met korting">
         <xpath expr="//div[hasclass('product_price')]" position="replace">
             <div class="product_price" aria-label="Price information">
-                <t t-if="not data.get('prevent_zero_price_sale') and not data.get('is_sample')">
+                <t t-if="not data.get('prevent_zero_price_sale') and not data.get('is_sample')"
+                   t-call="website_sale_discounted_products.promo_price">
                     <!-- Oude prijs: die van Odoo, of anders de verkoopprijs
                          (Odoo geeft bij o.a. een vaste prijsregel geen oude prijs mee) -->
                     <t t-set="promo_old" t-value="max(data.get('list_price') or 0, record.list_price or 0)"/>
-                    <t t-if="promo_old &gt; data['price']">
-                        <t t-set="promo_percent" t-value="max(1, int(round(100 * (promo_old - data['price']) / promo_old)))"/>
-                        <div class="o_promo_price d-flex flex-column align-items-start lh-sm">
-                            <span class="badge text-bg-danger mb-1">-<t t-out="promo_percent"/>%</span>
-                            <span class="text-muted small">Voorheen
-                                <del style="white-space: nowrap;"><span t-out="promo_old"
-                                    t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/></del>
-                            </span>
-                            <span>
-                                <span class="small">Nu</span>
-                                <span class="mb-0 fw-bold" name="product_price" t-out="data['price']"
-                                      t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
-                            </span>
-                            <div t-if="data.get('discount_end_date')"
-                                 class="o_promo_countdown small text-danger mt-1"
-                                 t-att-data-end="data['discount_end_date'].strftime('%Y-%m-%dT%H:%M:%SZ')">
-                                <i class="fa fa-clock-o me-1" role="img" aria-label="Tijd"/>Nog <span class="o_promo_countdown_value fw-bold"/>
-                            </div>
-                        </div>
-                    </t>
-                    <span t-else="" t-out="data['price']"
-                          class="mb-0 fw-bold"
-                          name="product_price"
-                          t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
+                    <t t-set="promo_new" t-value="data['price']"/>
+                    <t t-set="promo_end" t-value="data.get('discount_end_date')"/>
+                    <t t-set="promo_price_name" t-value="'product_price'"/>
                 </t>
             </div>
         </xpath>

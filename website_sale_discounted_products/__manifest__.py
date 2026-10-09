@@ -1,7 +1,7 @@
 {
     'name': "AFS - Webshop promoties",
     'summary': "Promoties met korting en aftelling; acties openen en sluiten in de webshop",
-    'version': '19.0.1.2.0',
+    'version': '19.0.1.2.1',
     'category': 'Website/Website',
     'author': "Nexu",
     'depends': ['website_sale', 'website_sale_stock'],

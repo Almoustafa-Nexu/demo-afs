@@ -1,4 +1,4 @@
-from datetime import date, datetime, time
+from datetime import datetime
 
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
@@ -31,11 +31,7 @@ class SaleOrder(models.Model):
             return None
         other_lines = (self.order_line - order_line).filtered(lambda l: l.product_template_id == template)
         in_cart = sum(other_lines.mapped('product_uom_qty'))
-        return max(limit - self._afs_staff_ordered_this_year(template) - in_cart, 0)
-
-    def _afs_staff_ordered_this_year(self, template):
-        """Wat de klant van deze winkelwagen dit jaar al bestelde in een personeelsshop."""
-        return self._afs_staff_ordered_by(self.partner_id, template)
+        return max(limit - self._afs_staff_ordered_by(self.partner_id, template) - in_cart, 0)
 
     @api.model
     def _afs_staff_ordered_by(self, partner, template):
@@ -43,12 +39,11 @@ class SaleOrder(models.Model):
 
         Telt offertes en orders. Winkelwagens (concept) en geannuleerde orders tellen niet mee.
         """
-        year_start = datetime.combine(date(fields.Date.today().year, 1, 1), time.min)
         lines = self.env['sale.order.line'].sudo().search([
             ('order_id.partner_id', '=', partner.id),
             ('order_id.website_id.afs_staff_shop', '=', True),
             ('order_id.state', 'in', ('sent', 'sale')),
-            ('order_id.date_order', '>=', year_start),
+            ('order_id.date_order', '>=', datetime(fields.Date.today().year, 1, 1)),
             ('product_template_id', '=', template.id),
         ])
         return sum(lines.mapped('product_uom_qty'))
@@ -59,5 +54,5 @@ class SaleOrder(models.Model):
             "Dit jaar bestelde je er al %(ordered)s.",
             product=template.name,
             limit=template.afs_staff_year_limit,
-            ordered=int(self._afs_staff_ordered_this_year(template)),
+            ordered=int(self._afs_staff_ordered_by(self.partner_id, template)),
         )

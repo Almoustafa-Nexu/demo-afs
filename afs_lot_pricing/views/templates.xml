@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="product_lot_counter" inherit_id="website_sale.product" name="AFS: teller per partij">
+        <xpath expr="//div[hasclass('o_wsale_product_details_content_section_price')]" position="after">
+            <t t-set="afs_lots" t-value="product._afs_lot_counter(website)"/>
+            <div t-if="afs_lots" class="o_afs_lot_counter mb-4 small">
+                <div class="fw-bold mb-1">Prijs per partij</div>
+                <t t-foreach="afs_lots[:3]" t-as="afs_lot">
+                    <div>
+                        <span t-out="'Nog' if afs_lot_first else 'Daarna'"/>
+                        <span t-out="'%g' % afs_lot['qty']"/>
+                        <t t-out="'stuk' if afs_lot['qty'] == 1 else 'stuks'"/> aan
+                        <span class="fw-bold" t-out="afs_lot['price']" t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
+                    </div>
+                </t>
+                <t t-set="afs_rest" t-value="product._afs_lot_counter_rest(afs_lots, 3)"/>
+                <div t-if="afs_rest">Daarna nog <t t-out="'%g' % afs_rest"/> <t t-out="'stuk' if afs_rest == 1 else 'stuks'"/>.</div>
+                <div class="text-muted mt-1">Je betaalt de prijs van de partij die je krijgt, de oudste partij eerst.</div>
+            </div>
+        </xpath>
+    </template>
+</odoo>

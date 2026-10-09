@@ -1,6 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
+    <!-- Prijs met korting, voor de shoplijst en de productkaart van de blokken: percentage,
+         oude prijs (Voorheen) en nieuwe prijs (Nu), met een teller als promo_end ingevuld is.
+         Zonder korting alleen de prijs.
+         Variabelen: promo_old, promo_new, promo_end (optioneel), promo_price_name (optioneel). -->
+    <template id="promo_price" name="Prijs met korting">
+        <div t-if="promo_old and promo_old &gt; promo_new" class="o_promo_price d-flex flex-column align-items-start lh-sm">
+            <span class="badge text-bg-danger mb-1">-<t t-out="max(1, int(round(100 * (promo_old - promo_new) / promo_old)))"/>%</span>
+            <span class="text-muted small">Voorheen
+                <del style="white-space: nowrap;"><span t-out="promo_old"
+                    t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/></del>
+            </span>
+            <span>
+                <span class="small">Nu</span>
+                <span class="mb-0 fw-bold" t-att-name="promo_price_name" t-out="promo_new"
+                      t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
+            </span>
+            <t t-call="website_sale_discounted_products.promo_countdown"/>
+        </div>
+        <span t-else="" class="mb-0 fw-bold" t-att-name="promo_price_name" t-out="promo_new"
+              t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
+    </template>
+
+    <!-- Live teller tot het einde van de actie (static/src/js/promo_countdown.js). Variabele: promo_end. -->
+    <template id="promo_countdown" name="Teller tot het einde van de actie">
+        <div t-if="promo_end"
+             class="o_promo_countdown small text-danger mt-1"
+             t-att-data-end="promo_end.strftime('%Y-%m-%dT%H:%M:%SZ')">
+            <i class="fa fa-clock-o me-1" role="img" aria-label="Tijd"/>Nog <span class="o_promo_countdown_value fw-bold"/>
+        </div>
+    </template>
+
     <!-- /shop: promoproducten staan niet in de gewone lijst (controllers/shop.py),
          maar in een eigen blok "Promoties" onderaan. -->
     <template id="promotions_block" inherit_id="website_sale.products">
@@ -42,25 +73,13 @@
                                 <t t-call="website_sale.products_item">
                                     <!-- products_item vraagt zelf get_product_prices(product) op -->
                                     <t t-set="get_product_prices" t-value="lambda p: promo_price_map[p.id]"/>
-                                    <!-- Oude prijs: die van Odoo, of anders de verkoopprijs -->
-                                    <t t-set="promo_old" t-value="template_price_vals.get('base_price') or product.list_price"/>
-                                    <t t-set="promo_new" t-value="template_price_vals['price_reduce']"/>
                                     <t t-set="product_price">
                                         <div class="product_price" aria-label="Price information">
-                                            <div t-if="promo_old and promo_old > promo_new" class="o_promo_price d-flex flex-column align-items-start lh-sm">
-                                                <span class="badge text-bg-danger mb-1">-<t t-out="max(1, int(round(100 * (promo_old - promo_new) / promo_old)))"/>%</span>
-                                                <span class="text-muted small">Voorheen
-                                                    <del style="white-space: nowrap;"><span t-out="promo_old"
-                                                        t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/></del>
-                                                </span>
-                                                <span>
-                                                    <span class="small">Nu</span>
-                                                    <span class="mb-0 fw-bold" t-out="promo_new"
-                                                          t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
-                                                </span>
-                                            </div>
-                                            <span t-else="" class="mb-0 fw-bold" t-out="promo_new"
-                                                  t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
+                                            <!-- Oude prijs: die van Odoo, of anders de verkoopprijs. Geen teller in de lijst. -->
+                                            <t t-call="website_sale_discounted_products.promo_price">
+                                                <t t-set="promo_old" t-value="template_price_vals.get('base_price') or product.list_price"/>
+                                                <t t-set="promo_new" t-value="template_price_vals['price_reduce']"/>
+                                            </t>
                                         </div>
                                     </t>
                                     <t t-set="design_field" t-value="website.shop_opt_products_design_classes"/>
@@ -130,13 +149,9 @@
                   name="product_list_price"/>
         </xpath>
 
-        <!-- Live teller tot het einde van de actie (static/src/js/promo_countdown.js) -->
+        <!-- Live teller tot het einde van de actie -->
         <xpath expr="//div[@name='product_price_container']" position="after">
-            <div t-if="promo_show and promo_end"
-                 class="o_promo_countdown small text-danger mt-1"
-                 t-att-data-end="promo_end.strftime('%Y-%m-%dT%H:%M:%SZ')">
-                <i class="fa fa-clock-o me-1" role="img" aria-label="Tijd"/>Nog <span class="o_promo_countdown_value fw-bold"/>
-            </div>
+            <t t-if="promo_show" t-call="website_sale_discounted_products.promo_countdown"/>
         </xpath>
 
     </template>
