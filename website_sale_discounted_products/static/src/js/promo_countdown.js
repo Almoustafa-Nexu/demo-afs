@@ -8,13 +8,17 @@
         return String(n).padStart(2, "0");
     }
 
-    function format(ms) {
+    function format(ms, human) {
         var total = Math.floor(ms / 1000);
         var days = Math.floor(total / 86400);
         var hours = Math.floor((total % 86400) / 3600);
         var minutes = Math.floor((total % 3600) / 60);
         var seconds = total % 60;
         var time = pad(hours) + ":" + pad(minutes) + ":" + pad(seconds);
+        if (human && days > 0) {
+            // productpagina: zoals je het zou zeggen; pas de laatste 24 uur tikt de teller per seconde
+            return days === 1 ? "1 dag" : days + " dagen";
+        }
         return days > 0 ? days + "d " + time : time;
     }
 
@@ -42,7 +46,7 @@
             }
             el.dataset.liep = "1";
             el.classList.remove("d-none");
-            value.textContent = format(left);
+            value.textContent = format(left, !!el.closest("#product_details"));
         });
     }
 

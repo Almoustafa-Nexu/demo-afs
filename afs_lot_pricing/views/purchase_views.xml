@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="purchase_order_form_afs_presale" model="ir.ui.view">
+        <field name="name">purchase.order.form.afs.presale</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase_stock.purchase_order_view_form_inherit"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/div[@name='button_box']" position="after">
+                <div class="alert alert-warning" role="alert" invisible="not afs_presale_taken">
+                    <field name="afs_presale_taken" nolabel="1" readonly="1"/>
+                </div>
+            </xpath>
+            <xpath expr="//field[@name='picking_type_id']" position="after">
+                <field name="afs_presale" readonly="state in ('done', 'cancel')"/>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='qty_invoiced']" position="after">
+                <field name="afs_presale_ordered" string="Besteld" column_invisible="not parent.afs_presale" optional="show"/>
+                <field name="afs_presale_free" string="Nog te koop" column_invisible="not parent.afs_presale" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

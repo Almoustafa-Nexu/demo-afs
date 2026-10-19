@@ -24,11 +24,8 @@ class WebsiteSnippetFilter(models.Model):
         )
 
     def _get_products_shop(self, website, limit, domain, **kwargs):
-        """Filter "Shop": alle producten, behalve die in promotie (die staan in "Promoties")."""
-        promo_products = self.env['product.template']._get_promo_products()
-        return self._search_products(
-            Domain(domain) & Domain('product_tmpl_id', 'not in', promo_products.ids), limit,
-        )
+        """Filter "Shop": alle producten van de webshop, ook die in promotie."""
+        return self._search_products(Domain(domain), limit)
 
     def _render(self, template_key, limit, *args, **kwargs):
         """Onze filters tonen altijd onze productkaart (percentage, Voorheen, Nu), ook in blokken

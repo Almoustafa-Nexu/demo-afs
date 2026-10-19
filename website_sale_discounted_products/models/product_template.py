@@ -18,6 +18,7 @@ class ProductTemplate(models.Model):
              "Niet aangevinkt: het product staat altijd in de webshop, maar is buiten een actie "
              "alleen bestelbaar uit voorraad.",
     )
+    promo_running = fields.Boolean(string="Actie liep bij de laatste controle", copy=False)
 
     # ------------------------------------------------------------
     # CRUD
@@ -41,7 +42,8 @@ class ProductTemplate(models.Model):
     # ------------------------------------------------------------
 
     def _get_promo_products(self, pricelist=None):
-        """Gepubliceerde producten die nu goedkoper zijn dan hun verkoopprijs.
+        """Gepubliceerde producten die nu goedkoper zijn dan hun verkoopprijs. Een andere module kan er
+        producten bij zetten (Korting per partij: stappen naar korting, nog aan de normale prijs).
 
         Alleen producten die de shop aan deze bezoeker mag tonen (dezelfde regel als de shop,
         sale_product_domain). Zo werkt ook AFS - Magazijntoegang hier.
@@ -66,27 +68,28 @@ class ProductTemplate(models.Model):
         """Echte promoproducten, met kortingspercentage, voor het voorbeeld van het blok "Promoties"."""
         try:
             pricelist = self._get_preview_pricelist()
-            products = self._get_promo_products(pricelist)[:limit]
+            products = self._get_promo_products(pricelist)
             prices = pricelist._get_products_price(products.product_variant_id, quantity=1.0)
         except Exception:
             # Het voorbeeld mag het blokkenpaneel van de editor nooit laten crashen
             _logger.exception("Voorbeeld van het blok Promoties kon niet geladen worden")
             return []
-        return [{
-            'product': product,
-            'discount': round(100 * (product.list_price - prices[product.product_variant_id.id]) / product.list_price),
-        } for product in products]
+        preview = []
+        for product in products:
+            discount = round(100 * (product.list_price - prices[product.product_variant_id.id]) / product.list_price) \
+                if product.list_price else 0
+            if discount > 0:  # in actie maar nu niet goedkoper: niet in het voorbeeld
+                preview.append({'product': product, 'discount': discount})
+        return preview[:limit]
 
     def _get_shop_preview(self, limit=4):
         """Echte producten, zonder promoties, voor het voorbeeld van het blok "Shop"."""
         try:
             website = self.env['website'].get_current_website()
-            promo_products = self._get_promo_products(self._get_preview_pricelist())
-            domain = Domain.AND([website.sale_product_domain(), [('id', 'not in', promo_products.ids)]])
-            return [{'product': product} for product in self.search(domain, limit=limit)]
+            return [{'product': product} for product in self.search(website.sale_product_domain(), limit=limit)]
         except Exception:
-            _logger.exception("Voorbeeld van het blok Shop kon niet geladen worden")
-            return []
+             _logger.exception("Voorbeeld van het blok Shop kon niet geladen worden")
+             return []
 
     def _get_preview_pricelist(self):
         """Prijslijst voor de voorbeelden in het venster "Blok invoegen".
@@ -114,22 +117,20 @@ class ProductTemplate(models.Model):
     def _sync_promo_availability(self):
         """Acties openen en sluiten in de webshop.
 
-        Voor producten met een actie (lopend, afgelopen of gepland):
-        - Actie loopt: bestelbaar, ook zonder voorraad. Die bestellingen bundelt AFS in één
-          inkooporder per leverancier.
-        - Geen actie: alleen bestelbaar uit voorraad, en vanzelf weer zodra er voorraad binnenkomt.
-        - "Alleen tijdens acties": het product staat alleen in de webshop zolang de actie loopt.
+        Begint een actie, dan is het product ook zonder voorraad bestelbaar (die bestellingen bundelt AFS
+        in één inkooporder per leverancier). Eindigt ze, dan weer alleen uit voorraad. Alleen op die twee
+        momenten: wat je ertussen zelf instelt (Ook verkopen indien niet op voorraad), blijft staan.
+        "Alleen tijdens acties": het product staat alleen in de webshop zolang de actie loopt.
 
-        Producten zonder actie blijven zoals ze ingesteld zijn (vakje Ook verkopen indien niet
-        op voorraad op het product).
-
-        Draait na elke wijziging van een actie, en elke 15 minuten voor acties die aflopen.
+        Draait na elke wijziging van een actie, en elke 15 minuten voor acties die beginnen of aflopen.
         """
-        Items = self.env['product.pricelist.item']
-        in_action = Items._get_running_actions()._get_product_templates()
-        with_action = Items._get_actions()._get_product_templates()
+        in_action = self.env['product.pricelist.item']._get_running_actions()._get_product_templates()
         products = self.sudo().search([('sale_ok', '=', True)])
-        _switch(products.filtered('is_storable') & with_action, 'allow_out_of_stock_order', on=in_action)
+        running = self.sudo().search([('promo_running', '=', True)])
+        started = (products & in_action).filtered('is_storable') - running
+        ended = running - in_action
+        started.write({'allow_out_of_stock_order': True, 'promo_running': True})
+        ended.write({'allow_out_of_stock_order': False, 'promo_running': False})
         _switch(products.filtered('promo_only'), 'is_published', on=in_action)
 
 

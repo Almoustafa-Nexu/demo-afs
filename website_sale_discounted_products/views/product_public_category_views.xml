@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Website > eCommerce > Categorieën: vinkje "Automatisch: producten in actie" -->
+    <record id="product_public_category_form_promotions" model="ir.ui.view">
+        <field name="name">product.public.category.form.promotions</field>
+        <field name="model">product.public.category</field>
+        <field name="inherit_id" ref="website_sale.product_public_category_form_view"/>
+        <field name="arch" type="xml">
+            <field name="parent_id" position="after">
+                <field name="afs_auto_promotions"/>
+            </field>
+        </field>
+    </record>
+
+</odoo>

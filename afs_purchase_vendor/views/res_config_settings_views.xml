@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="res_config_settings_view_form_afs_purchase_vendor" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.afs.purchase.vendor</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="purchase.res_config_settings_view_form_purchase"/>
+        <field name="arch" type="xml">
+            <setting id="get_order_warnings" position="after">
+                <setting id="afs_purchase_vendor_only"
+                         help="Op een inkoop kies je alleen producten met deze leverancier (product, tabblad Inkoop). Leveren aan volgt het magazijn waaruit de producten naar de apotheken gaan.">
+                    <field name="afs_purchase_vendor_only"/>
+                </setting>
+            </setting>
+        </field>
+    </record>
+
+</odoo>

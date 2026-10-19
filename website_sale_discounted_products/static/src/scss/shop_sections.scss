@@ -1,0 +1,30 @@
+// Hoofdpagina van de shop: een blok per categorie (Promoties eerst).
+// Een tab bovenaan scrolt zacht naar zijn blok en stopt net onder het menu.
+
+html:has(.o_afs_shop_sections) {
+    scroll-behavior: smooth;
+}
+
+.o_afs_shop_section {
+    scroll-margin-top: 6rem;
+    margin-bottom: 2.5rem;
+}
+
+.o_afs_shop_section_title {
+    margin: 1.5rem 0 1rem;
+}
+
+// Alle rasters in de shop volgen de afbeeldingsopties van "Ontwerp van producten" (verhouding, automatisch
+// bijsnijden). Odoo zet die alleen op het eerste raster (#o_wsale_products_grid); de andere blokken hebben
+// dezelfde klassen.
+#o_wsale_container .o_wsale_products_grid_table {
+    @each $name, $ratio in $o-wsale-shop-ratios {
+        &.o_wsale_products_opt_thumb_#{$name} {
+            --o-wsale-card-thumb-aspect-ratio: #{$ratio};
+        }
+    }
+
+    &.o_wsale_products_opt_thumb_cover {
+        --o-wsale-card-thumb-fill-mode: cover;
+    }
+}

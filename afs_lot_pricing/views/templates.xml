@@ -1,21 +1,95 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Productpagina, onder de prijs: het doel van de apotheken samen (naar de volgende stap met meer korting),
+         de voorraad en de stappen in de volgorde van de inkoop.
+             Nog 100 stuks om het doel te bereiken, dan krijg je 20% korting.
+             ✓ Op voorraad: 20 stuks
+             🚚 In voorverkoop: 260 stuks
+             Prijs per stap
+             Normale prijs  nu   100 stuks   10,00 €
+             20% korting          80 stuks    8,00 €
+             40% korting         100 stuks    6,00 € -->
     <template id="product_lot_counter" inherit_id="website_sale.product" name="AFS: teller per partij">
         <xpath expr="//div[hasclass('o_wsale_product_details_content_section_price')]" position="after">
-            <t t-set="afs_lots" t-value="product._afs_lot_counter(website)"/>
-            <div t-if="afs_lots" class="o_afs_lot_counter mb-4 small">
-                <div class="fw-bold mb-1">Prijs per partij</div>
-                <t t-foreach="afs_lots[:3]" t-as="afs_lot">
-                    <div>
-                        <span t-out="'Nog' if afs_lot_first else 'Daarna'"/>
-                        <span t-out="'%g' % afs_lot['qty']"/>
-                        <t t-out="'stuk' if afs_lot['qty'] == 1 else 'stuks'"/> aan
-                        <span class="fw-bold" t-out="afs_lot['price']" t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
-                    </div>
-                </t>
-                <t t-set="afs_rest" t-value="product._afs_lot_counter_rest(afs_lots, 3)"/>
-                <div t-if="afs_rest">Daarna nog <t t-out="'%g' % afs_rest"/> <t t-out="'stuk' if afs_rest == 1 else 'stuks'"/>.</div>
-                <div class="text-muted mt-1">Je betaalt de prijs van de partij die je krijgt, de oudste partij eerst.</div>
+            <t t-set="afs" t-value="product._afs_lot_goal(website, max(combination_info.get('list_price') or 0, product.list_price or 0))"/>
+            <div t-if="afs" class="o_afs_lot_deal mb-4">
+                <p t-if="afs['goal']" class="o_afs_lot_deal_goal mb-0">Nog <t t-if="afs['few']">maar </t><strong t-out="afs['goal']"/> om het doel te bereiken, dan krijg je <strong><t t-out="afs['discount']"/>% korting</strong>.</p>
+                <p t-if="afs['stock']" class="o_afs_lot_deal_status mb-0">
+                    <i class="fa fa-check-circle" role="img" aria-hidden="true"/><span>Op voorraad: <strong t-out="afs['stock']"/></span>
+                </p>
+                <p t-if="afs['presale']" class="o_afs_lot_deal_status o_afs_lot_deal_presale mb-0">
+                    <i class="fa fa-truck" role="img" aria-hidden="true"/><span>In voorverkoop: <strong t-out="afs['presale']"/></span>
+                </p>
+                <div t-if="afs['steps']" class="o_afs_lot_steps">
+                    <p class="o_afs_lot_steps_title mb-1">Prijs per stap</p>
+                    <ol class="list-unstyled mb-0">
+                        <li t-foreach="afs['steps']" t-as="step" t-att-class="step['now'] and 'o_afs_lot_step_now'">
+                            <span><t t-out="step['label']"/><small t-if="step['now']" class="o_afs_lot_step_tag">nu</small></span>
+                            <span class="o_afs_lot_step_qty" t-out="step['qty']"/>
+                            <span class="o_afs_lot_step_price" t-out="step['price']" t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+        </xpath>
+    </template>
+
+    <!-- Shopkaartje aan de normale prijs met stappen naar korting: een sticker op de foto (ACTIE / tot -40%).
+         Zodra er korting geldt, toont de module Webshop promoties het percentage (-20% korting). -->
+    <template id="products_item_teaser" inherit_id="website_sale.products_item" name="AFS: sticker Actie op het kaartje">
+        <xpath expr="//a[contains(@t-attf-class, 'oe_product_image_link')]" position="after">
+            <t t-set="afs_teaser" t-value="product._afs_lot_teaser(website)"/>
+            <span t-if="afs_teaser" class="o_afs_teaser">Actie<small t-out="afs_teaser"/></span>
+        </xpath>
+    </template>
+
+    <!-- Dezelfde sticker op de productkaart van het blok Promoties (bv. op de homepagina) -->
+    <template id="promo_card_teaser" inherit_id="website_sale_discounted_products.dynamic_filter_template_product_product_promo"
+              name="AFS: sticker Actie op de kaart van het blok Promoties">
+        <xpath expr="//a[contains(@t-attf-class, 'oe_product_image_link')]" position="after">
+            <t t-set="afs_teaser" t-value="not is_sample and (record.product_tmpl_id if record.is_product_variant else record)._afs_lot_teaser(website)"/>
+            <span t-if="afs_teaser" class="o_afs_teaser">Actie<small t-out="afs_teaser"/></span>
+        </xpath>
+    </template>
+
+    <!-- Webshop: een rij per partij in het overzicht (winkelwagen rechts, afrekenen, bevestiging), met onder het
+         product een korte regel; het bedrag staat rechts.
+             [−45%]  66 × 5,50 €
+             [−20%]  5 × 8,00 €  [voorverkoop] -->
+    <template id="cart_lot_part" name="AFS: prijs van een partij">
+        <div class="o_afs_cart_lot">
+            <span t-if="afs_part['discount']" class="o_afs_cart_lot_badge">−<t t-out="('%g' % round(afs_part['discount'], 1)).replace('.', ',')"/>%</span>
+            <span class="text-nowrap"><t t-out="'%g' % afs_part['qty']"/> × <t t-out="afs_part['amount'] / afs_part['qty'] if afs_part['qty'] else afs_part['price']" t-options="{'widget': 'monetary', 'display_currency': line.currency_id}"/></span>
+            <span t-if="afs_part['note']" class="o_afs_cart_lot_note" t-out="afs_part['note']"/>
+        </div>
+    </template>
+
+    <template id="cart_summary_lots" inherit_id="website_sale.cart_summary_content" name="AFS: een rij per partij in het overzicht">
+        <xpath expr="//table[hasclass('o_cart_products_table')]" position="before">
+            <t t-set="afs_rows" t-value="website_sale_order._afs_summary_rows(website.show_line_subtotals_tax_selection == 'tax_included') if website_sale_order else []"/>
+        </xpath>
+        <xpath expr="//table[hasclass('o_cart_products_table')]/tbody/tr" position="attributes">
+            <attribute name="t-foreach">[row[0] for row in afs_rows]</attribute>
+        </xpath>
+        <xpath expr="//table[hasclass('o_cart_products_table')]/tbody/tr/td[1]" position="before">
+            <t t-set="afs_part" t-value="afs_rows[line_index][1]"/>
+        </xpath>
+        <xpath expr="//span[hasclass('o_cart_item_count')]/t[1]" position="attributes">
+            <attribute name="t-out">int(afs_part['qty'] if afs_part else line.product_uom_qty)</attribute>
+        </xpath>
+        <xpath expr="//td[@name='website_sale_cart_summary_product_name']" position="inside">
+            <t t-if="afs_part" t-call="afs_lot_pricing.cart_lot_part"/>
+        </xpath>
+        <xpath expr="//td[@name='website_sale_cart_summary_line_price']//t[@t-set='product_price']" position="attributes">
+            <attribute name="t-value">afs_part['amount'] if afs_part else line._get_cart_display_price()</attribute>
+        </xpath>
+    </template>
+
+    <!-- Winkelwagen: het blok rechts toont de regels per partij boven de totalen (ook na het aanpassen van een aantal) -->
+    <template id="cart_total_lots" inherit_id="website_sale.total" name="AFS: regels per partij in de winkelwagen">
+        <xpath expr="//div[contains(@t-attf-class, 'o_cart_total')]/table" position="before">
+            <div t-if="request and '/shop/cart' in request.httprequest.path" class="o_afs_cart_rows border-bottom mb-3">
+                <t t-call="website_sale.cart_summary_content"/>
             </div>
         </xpath>
     </template>
