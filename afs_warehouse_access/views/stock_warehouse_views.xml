@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-
-    <!-- Magazijn: "Enkel voor deze apotheken" onder het adres -->
+    <!-- Magazijn: Enkel voor deze apotheken -->
     <record id="view_warehouse_form_afs_access" model="ir.ui.view">
         <field name="name">stock.warehouse.form.afs.access</field>
         <field name="model">stock.warehouse</field>
@@ -12,5 +11,4 @@
             </xpath>
         </field>
     </record>
-
 </odoo>

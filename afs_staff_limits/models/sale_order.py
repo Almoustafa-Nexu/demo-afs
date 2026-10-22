@@ -8,7 +8,7 @@ class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
     def _verify_updated_quantity(self, order_line, product_id, new_qty, uom_id, **kwargs):
-        """Winkelwagen in de personeelsshop: nooit meer dan de jaarlimiet van het product."""
+        """Winkelwagen in de personeelsshop: nooit meer dan de jaarlimiet."""
         qty, warning = super()._verify_updated_quantity(order_line, product_id, new_qty, uom_id, **kwargs)
         template = self.env['product.product'].browse(product_id).product_tmpl_id
         allowed = self._afs_staff_allowed_qty(template, order_line)
@@ -25,20 +25,17 @@ class SaleOrder(models.Model):
         return super()._check_cart_is_ready_to_be_paid()
 
     def _afs_staff_allowed_qty(self, template, order_line):
-        """Hoeveel van dit product nog mag op deze regel; None als er geen limiet geldt."""
+        """Hoeveel nog mag op deze regel; None zonder limiet."""
         limit = template.afs_staff_year_limit
         if not (limit and self.website_id.afs_staff_shop):
             return None
-        other_lines = (self.order_line - order_line).filtered(lambda l: l.product_template_id == template)
-        in_cart = sum(other_lines.mapped('product_uom_qty'))
+        others = (self.order_line - order_line).filtered(lambda l: l.product_template_id == template)
+        in_cart = sum(others.mapped('product_uom_qty'))
         return max(limit - self._afs_staff_ordered_by(self.partner_id, template) - in_cart, 0)
 
     @api.model
     def _afs_staff_ordered_by(self, partner, template):
-        """Hoeveel stuks dit personeelslid dit kalenderjaar bestelde in een personeelsshop.
-
-        Telt offertes en orders. Winkelwagens (concept) en geannuleerde orders tellen niet mee.
-        """
+        """Stuks die dit personeelslid dit jaar bestelde in een personeelsshop (offertes en orders)."""
         lines = self.env['sale.order.line'].sudo().search([
             ('order_id.partner_id', '=', partner.id),
             ('order_id.website_id.afs_staff_shop', '=', True),

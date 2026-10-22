@@ -1,23 +1,46 @@
-// AFS-huisstijl voor de webshop (zoals afscv.be). Alleen opmaak: de inhoud van de site blijft zoals ze is.
-// Kleuren aanpassen? Verander de variabelen hieronder en werk de module bij.
+// AFS-huisstijl voor de webshop (zoals afscv.be). Alleen opmaak. Kleuren aanpassen: de variabelen hieronder.
 
-// Zonder ";" in de url: Odoo zet @import-regels bovenaan de bundel en knipt ze af op de eerste ";".
+// Zonder ";" in de url: Odoo zet @import bovenaan de bundel en knipt af op de eerste ";".
 @import url("https://fonts.googleapis.com/css?family=Poppins:400,500,600,700&display=swap");
 
 $afs-green: #6ba342;
 $afs-green-dark: #578a33;
+$afs-green-deep: #3f7f24;
+$afs-green-light: #8cc463;
 $afs-text: #373737;
+$afs-muted: #6f746b; // grijsgroen voor bijzaken
 $afs-line: #e3e3e3;
 $afs-font: 'Poppins', sans-serif;
 $afs-radius: 20px;
 $afs-footer-top: #e0f2d4;
 $afs-footer-bottom: #b9d4a5;
+$afs-stripes: repeating-linear-gradient(90deg, #6da545 0 5px, #72a94b 5px 6px, #6ba342 6px 11px);
 
 @function afs-rgb($color) {
     @return red($color) + ', ' + green($color) + ', ' + blue($color);
 }
 
-// == Lettertype en hoofdkleur ==============================================================
+// Witte titel op de groene banner (shop, categorie, contactpagina)
+@mixin afs-banner-text {
+    font-family: $afs-font;
+    font-size: 1.75rem !important;
+    font-weight: 600;
+    line-height: 1.3;
+    text-align: center;
+}
+
+// Groene kortingssticker
+@mixin afs-discount-look {
+    background: radial-gradient(circle at 30% 25%, $afs-green-light 0%, $afs-green 45%, $afs-green-deep 100%) !important;
+    color: #fff !important;
+    font-family: $afs-font;
+    font-weight: 800;
+    border: 0 !important;
+    box-shadow: 0 6px 14px rgba(47, 95, 25, .35);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .15);
+}
+
+// == Lettertype en hoofdkleur ==
 
 :root {
     --bs-body-font-family: #{$afs-font};
@@ -41,13 +64,10 @@ body, #wrapwrap,
 
 #wrap .breadcrumb-item a {
     color: $afs-green;
-
-    &:hover {
-        color: $afs-green-dark;
-    }
+    &:hover { color: $afs-green-dark; }
 }
 
-// == Knoppen ===============================================================================
+// == Knoppen en formulieren ==
 
 #wrapwrap, .modal {
     .btn-primary {
@@ -90,7 +110,7 @@ body, #wrapwrap,
     }
 }
 
-// == Menu bovenaan: hoofdletters, groene lijn boven het actieve item ======================
+// == Menu: hoofdletters, groene lijn boven het actieve item ==
 
 header#top {
     .navbar:not(.o_header_mobile) {
@@ -106,7 +126,6 @@ header#top {
         border-radius: 0;
         background: none;
         transition: color .15s, border-color .15s;
-
         &:hover, &:focus-visible, &.active, .show > & {
             color: $afs-green;
             border-top-color: $afs-green;
@@ -117,7 +136,7 @@ header#top {
     }
 }
 
-// == Titel van de shop en van een categorie: groene banner ==================================
+// == Titel van de shop en van een categorie: groene banner ==
 
 #o_wsale_products_header {
     .o_wsale_shop_title,
@@ -128,13 +147,8 @@ header#top {
         border-radius: 12px;
         background-color: $afs-green;
         color: #fff;
-        font-family: $afs-font;
-        font-size: 1.75rem !important;
-        font-weight: 600;
-        line-height: 1.3;
-        text-align: center;
-
-        // Een markering of grootte die in de editor op de tekst gezet werd, telt niet mee.
+        @include afs-banner-text;
+        // opmaak die de editor op de tekst zette, telt niet mee
         * {
             background: none !important;
             font-size: inherit !important;
@@ -143,17 +157,15 @@ header#top {
     }
 }
 
-// Zonder zijbalk loopt de banner over de volle breedte, zoals op afscv.be. Staat de titel van de shop
-// bovenaan (geen kruimelpad of zoekopdracht erboven), dan sluit hij meteen aan op het menu.
+// Zonder zijbalk: banner over de volle breedte; staat de titel bovenaan, dan meteen onder het menu
 #o_wsale_container:not(.o_wsale_has_sidebar) #o_wsale_products_header {
     &.o_wsale_products_header_show_shop_title:has(> .o_wsale_shop_title:first-child) {
         padding-top: 0 !important;
     }
-
     .o_wsale_shop_title,
     .o_wsale_category_title:not(.o_wsale_category_title_is_search) {
         border-radius: 0;
-        border-image-source: repeating-linear-gradient(90deg, #6da545 0 5px, #72a94b 5px 6px, #6ba342 6px 11px);
+        border-image-source: $afs-stripes;
         border-image-slice: 0 fill;
         border-image-width: 0;
         border-image-outset: 0 100vw;
@@ -161,7 +173,7 @@ header#top {
     }
 }
 
-// == Categorietabs (Vast gamma, Overstock, ...) =============================================
+// == Categorietabs ==
 
 #o_wsale_categories_filmstrip {
     .o_wsale_filmstrip_link span {
@@ -188,7 +200,7 @@ header#top {
     }
 }
 
-// == Zoekbalk en sorteren ===================================================================
+// == Zoekbalk en sorteren ==
 
 #o_wsale_products_header .o_wsale_products_searchbar_form {
     .oe_search_box {
@@ -199,10 +211,7 @@ header#top {
         border-radius: 50rem 0 0 50rem !important;
         padding-left: 1.25rem;
         box-shadow: none !important;
-
-        &::placeholder {
-            color: #8c8c8c;
-        }
+        &::placeholder { color: #8c8c8c; }
     }
     .oe_search_button {
         background-color: #fff !important;
@@ -220,75 +229,56 @@ header#top {
     color: $afs-text;
 }
 
-// == Productkaartjes: zoals de apotheekkaartjes op afscv.be ================================
+// == Productkaartjes: in de shop en in de productblokken (Promoties, Onze producten) ==
 
-#products_grid .oe_product_cart {
+$afs-cards: ':is(#products_grid, .s_dynamic_snippet_products) .oe_product_cart';
+
+#{$afs-cards} {
     background-color: #fff;
     border: 1px solid $afs-line !important;
     border-radius: $afs-radius !important;
     box-shadow: 0 4px 10px rgba(0, 0, 0, .08);
     overflow: hidden;
     transition: box-shadow .2s, transform .2s;
-
     &:hover {
         box-shadow: 0 10px 22px rgba(0, 0, 0, .14);
         transform: translateY(-2px);
     }
-
     .oe_product_image {
         border-radius: 0 !important;
     }
-
     .o_wsale_product_information {
         padding: .75rem 1rem 1rem !important;
         text-align: center;
     }
-
-    // Promotieprijs (Voorheen / Nu) ook in het midden
     .o_promo_price {
         align-items: center !important;
     }
-
     .o_wsale_products_item_title {
         font-family: $afs-font;
         font-size: 1.1rem;
         font-weight: 400;
-
-        a, a span {
-            color: $afs-green !important;
-        }
-        a:hover span {
-            color: $afs-green-dark !important;
-        }
+        a, a span { color: $afs-green !important; }
+        a:hover span { color: $afs-green-dark !important; }
     }
-
     .o_wsale_product_sub {
         justify-content: center !important;
     }
-
     .product_price {
         color: $afs-text;
     }
 }
 
-// == Korting op de shop: groene sticker op het kaartje ======================================
-// Het percentage komt uit de module Webshop promoties (badge in .o_promo_price).
-// De productpagina heeft haar eigen, rustige stijl: zie verder.
-
-$afs-green-deep: #3f7f24;
-$afs-green-light: #8cc463;
-
-@mixin afs-discount-look {
-    background: radial-gradient(circle at 30% 25%, $afs-green-light 0%, $afs-green 45%, $afs-green-deep 100%) !important;
-    color: #fff !important;
-    font-family: $afs-font;
-    font-weight: 800;
-    border: 0 !important;
-    box-shadow: 0 6px 14px rgba(47, 95, 25, .35);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, .15);
+// Shop: 6 kaartjes per rij (de editor gaat maar tot 5; laat daar 5 staan)
+@media (min-width: 992px) {
+    #o_wsale_container[data-ppr="5"] .o_wsale_products_grid_table {
+        --columns: 12;
+    }
 }
 
-// Overal (bv. het blok Promoties elders op de site): een groene pil
+// == Kortingssticker ==
+
+// Overal (bv. het blok Promoties): een groene pil
 .o_promo_price .badge {
     @include afs-discount-look;
     padding: .35em .75em;
@@ -296,9 +286,9 @@ $afs-green-light: #8cc463;
     font-size: .8rem;
 }
 
-// Shopkaartjes: ronde sticker linksboven op de foto, scheef, met een klein woord eronder.
-//   -45% / korting     het percentage (module Webshop promoties)
-//   ACTIE / tot -40%   nog de normale prijs, maar met stappen naar korting (module Korting per partij)
+// Shopkaartjes: ronde, scheve sticker linksboven op de foto
+//   -45% / korting     het percentage (Webshop promoties)
+//   ACTIE / tot -40%   nog de normale prijs, maar stappen naar korting (Korting per partij)
 #wrapwrap .oe_product_cart .o_promo_price .badge,
 #wrapwrap .oe_product_cart .o_afs_teaser {
     @include afs-discount-look;
@@ -321,8 +311,7 @@ $afs-green-light: #8cc463;
     letter-spacing: -.02em;
     transform: rotate(-12deg);
     transition: transform .2s ease;
-    pointer-events: none; // een klik gaat door naar de foto, dus naar het product
-
+    pointer-events: none; // een klik gaat naar het product
     &::after,
     small {
         margin-top: 3px;
@@ -341,13 +330,11 @@ $afs-green-light: #8cc463;
     font-size: .8rem;
     letter-spacing: .04em;
     text-transform: uppercase;
-
     small {
         letter-spacing: .02em;
         text-transform: none;
     }
-
-    // alleen ACTIE (lopende actie, de partij met korting is op): iets groter
+    // alleen ACTIE: iets groter
     &:not(:has(small)) {
         font-size: .95rem;
     }
@@ -358,7 +345,7 @@ $afs-green-light: #8cc463;
     transform: rotate(-6deg) scale(1.1);
 }
 
-// Op een smal scherm een kleinere sticker, zodat de foto zichtbaar blijft
+// Smal scherm: kleinere sticker
 @media (max-width: 767.98px) {
     #wrapwrap .oe_product_cart .o_promo_price .badge,
     #wrapwrap .oe_product_cart .o_afs_teaser {
@@ -368,40 +355,60 @@ $afs-green-light: #8cc463;
         height: 50px;
         border-width: 2px !important;
         font-size: .9rem;
-
         &::after,
         small {
             margin-top: 2px;
             font-size: .4rem;
         }
     }
-
     #wrapwrap .oe_product_cart .o_afs_teaser {
         font-size: .62rem;
-
-        &:not(:has(small)) {
-            font-size: .72rem;
-        }
+        &:not(:has(small)) { font-size: .72rem; }
     }
 }
 
 // Prijs op het kaartje: oude prijs klein en grijs, nieuwe prijs groot
-#products_grid .oe_product_cart .o_promo_price {
+#{$afs-cards} .o_promo_price {
     gap: .1rem;
-
-    > .text-muted {
-        font-size: .8rem;
-    }
-    del {
-        color: #9a9a9a;
-    }
-    .fw-bold {
+    > .text-muted { font-size: .8rem; }
+    del { color: #9a9a9a; }
+    > span > .fw-bold {
         font-size: 1.2rem;
         color: $afs-text;
     }
 }
 
-// Teller tot het einde van de actie: lichtgroene pil (op de productpagina gewone tekst, zie verder)
+// Productblokken: ruimte voor de schaduw, witte pijltjes met een groen icoon
+.s_dynamic_snippet_products {
+    .s_dynamic_snippet_row {
+        padding-block: .5rem 1rem;
+    }
+    :is(.carousel-control-prev, .carousel-control-next) {
+        opacity: 1;
+        .oi {
+            background: #fff !important;
+            color: $afs-green;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .18);
+        }
+    }
+    // smal scherm: kleinere pijltjes naast het kaartje in plaats van erover
+    @media (max-width: 767.98px) {
+        .carousel {
+            padding-inline: 1.75rem;
+        }
+        :is(.carousel-control-prev, .carousel-control-next) {
+            position: absolute;
+            top: 40%;
+            bottom: auto;
+            width: auto;
+            .oi { padding: .55rem !important; }
+        }
+        .carousel-control-prev { left: 0; }
+        .carousel-control-next { right: 0; }
+    }
+}
+
+// Teller tot het einde van de actie: lichtgroene pil (op de productpagina gewone tekst)
 #wrapwrap .o_promo_countdown {
     display: inline-flex;
     align-items: center;
@@ -412,52 +419,31 @@ $afs-green-light: #8cc463;
     background-color: #eef6e8;
     color: $afs-text !important;
     font-weight: 500;
-
     .fa {
         margin: 0 !important;
         color: $afs-green;
     }
-    .o_promo_countdown_value {
-        color: $afs-green-deep;
-    }
+    .o_promo_countdown_value { color: $afs-green-deep; }
 }
 
-// == Productpagina: prijsblok, doel en voorraad ==============================================
-//     Normale prijs   10,00 €   (doorstreept)
-//     Actieprijs       5,00 €   (groot)
-//     Je bespaart      5,00 €  −50%
-//     ◷ Actie loopt nog 5 dagen
-//     Nog 100 stuks om het doel te bereiken, dan krijg je 20% korting.
-//     ✓ Op voorraad: 100 stuks
-//     Prijs per stap (de stappen, de stap van nu in het groen)
-
-$afs-muted: #6f746b; // grijsgroen voor bijzaken
+// == Productpagina: prijsblok, doel, voorraad en prijs per stap ==
 
 #wrapwrap #product_details {
     .o_promo_table {
         color: $afs-text;
-
-        .o_promo_label {
-            color: $afs-muted;
-        }
-
-        .o_promo_old_price {
-            color: $afs-muted !important;
-        }
-
+        .o_promo_label { color: $afs-muted; }
+        .o_promo_old_price { color: $afs-muted !important; }
         .oe_price {
             color: $afs-green-deep;
             font-size: 1.75rem;
             font-weight: 600;
             line-height: 1.15;
         }
-
         .o_promo_saving {
             color: $afs-green-deep;
             font-weight: 500;
         }
-
-        // het kortingslabel: vlak en klein
+        // het kortingslabel: vlak en klein, zonder "korting" erachter
         .o_promo_badge {
             padding: .2rem .45rem;
             border: 0 !important;
@@ -470,14 +456,9 @@ $afs-muted: #6f746b; // grijsgroen voor bijzaken
             letter-spacing: 0;
             box-shadow: none;
             text-shadow: none;
-
-            &::after {
-                content: none; // geen "korting" erachter
-            }
+            &::after { content: none; }
         }
     }
-
-    // hoe lang de actie nog loopt: gewone kleine tekst met een klokje
     .o_promo_countdown {
         display: flex;
         align-items: center;
@@ -489,7 +470,6 @@ $afs-muted: #6f746b; // grijsgroen voor bijzaken
         color: $afs-muted !important;
         font-size: .875rem;
         font-weight: 400;
-
         .fa {
             width: 1rem;
             margin: 0 !important;
@@ -503,7 +483,6 @@ $afs-muted: #6f746b; // grijsgroen voor bijzaken
     }
 }
 
-// doel en voorraad (module Korting per partij), dicht onder de prijs
 #wrapwrap #product_details .o_wsale_product_details_content_section_price:has(+ .o_afs_lot_deal) {
     margin-bottom: 1rem !important;
 }
@@ -512,66 +491,42 @@ $afs-muted: #6f746b; // grijsgroen voor bijzaken
     color: $afs-text;
     font-size: .9375rem;
     line-height: 1.45;
-
-    // "Nog maar 5 stuks, dan verandert de prijs."
     .o_afs_lot_deal_goal {
         font-size: 1rem;
-
         strong {
             color: $afs-green-deep;
             font-weight: 600;
             white-space: nowrap;
         }
     }
-
-    // daaronder de voorraad: "✓ Op voorraad: 20 stuks"
     .o_afs_lot_deal_status {
         display: flex;
         align-items: center;
         gap: .45rem;
         color: $afs-green-deep;
         font-weight: 500;
-
         .fa {
             width: 1rem;
             text-align: center;
             color: $afs-green;
         }
-        strong {
-            font-weight: 600;
-        }
+        strong { font-weight: 600; }
     }
-
-    .o_afs_lot_deal_goal + .o_afs_lot_deal_status {
-        margin-top: .3rem;
-    }
-
-    .o_afs_lot_deal_status + .o_afs_lot_deal_status {
-        margin-top: .15rem;
-    }
-
+    .o_afs_lot_deal_goal + .o_afs_lot_deal_status { margin-top: .3rem; }
+    .o_afs_lot_deal_status + .o_afs_lot_deal_status { margin-top: .15rem; }
     // voorverkoop: nog niet binnen, dus geen groen vinkje
     .o_afs_lot_deal_presale {
         color: $afs-text;
-
-        .fa {
-            color: $afs-muted;
-        }
+        .fa { color: $afs-muted; }
     }
-
-    // de stappen in de volgorde van de inkoop, de stap van nu in het groen:
-    //     Normale prijs [nu]   100 stuks   10,00 €
-    //     20% korting           80 stuks    8,00 €
     .o_afs_lot_steps {
         max-width: 24rem;
         margin-top: .9rem;
         font-size: .875rem;
-
         .o_afs_lot_steps_title {
             color: $afs-muted;
             font-size: .8rem;
         }
-
         li {
             display: grid;
             grid-template-columns: 1fr auto 5.5rem;
@@ -579,29 +534,22 @@ $afs-muted: #6f746b; // grijsgroen voor bijzaken
             align-items: baseline;
             padding: .4rem 0;
             border-top: 1px solid $afs-line;
-
-            &:last-child {
-                border-bottom: 1px solid $afs-line;
-            }
+            &:last-child { border-bottom: 1px solid $afs-line; }
         }
-
         .o_afs_lot_step_qty {
             color: $afs-muted;
             text-align: right;
         }
-
         .o_afs_lot_step_price {
             text-align: right;
             white-space: nowrap;
             font-variant-numeric: tabular-nums;
         }
-
         .o_afs_lot_step_now,
         .o_afs_lot_step_now .o_afs_lot_step_qty {
             color: $afs-green-deep;
             font-weight: 600;
         }
-
         .o_afs_lot_step_tag {
             margin-left: .45rem;
             padding: .1rem .4rem;
@@ -615,9 +563,8 @@ $afs-muted: #6f746b; // grijsgroen voor bijzaken
     }
 }
 
-// == Winkelwagen en afrekenen: per partij een korte regel onder het product ================
-//     [−45%]  66 × 5,50 €
-//     [−20%]  5 × 8,00 €  [voorverkoop]
+// == Winkelwagen: per partij een korte regel onder het product ==
+
 #wrapwrap .o_afs_cart_lot {
     display: flex;
     flex-wrap: wrap;
@@ -628,7 +575,6 @@ $afs-muted: #6f746b; // grijsgroen voor bijzaken
     font-family: $afs-font;
     font-size: .8125rem;
     line-height: 1.35;
-
     .o_afs_cart_lot_badge,
     .o_afs_cart_lot_note {
         padding: .05rem .35rem;
@@ -637,22 +583,18 @@ $afs-muted: #6f746b; // grijsgroen voor bijzaken
         line-height: 1.3;
         white-space: nowrap;
     }
-
-    // de korting: groen label
     .o_afs_cart_lot_badge {
         background: $afs-green-deep;
         color: #fff;
         font-weight: 600;
     }
-
-    // voorverkoop of nog niet op voorraad: grijs omrand label
     .o_afs_cart_lot_note {
         border: 1px solid $afs-line;
         color: $afs-muted;
     }
 }
 
-// het aantal op de foto in het overzicht: lichtgroen bolletje in plaats van de themakleur
+// het aantal op de foto: lichtgroen bolletje
 #wrapwrap .o_cart_products_table .o_cart_item_count {
     border: 2px solid #fff !important;
     background: $afs-footer-top !important;
@@ -661,15 +603,15 @@ $afs-muted: #6f746b; // grijsgroen voor bijzaken
     font-weight: 600;
 }
 
-// == Blokken per categorie op de shop (module Webshop promoties) ===========================
+// == Titels: blokken per categorie op de shop en de productblokken ==
 
-.o_afs_shop_section_title {
+.o_afs_shop_section_title,
+.s_dynamic_snippet_products .s_dynamic_snippet_title h2 {
     position: relative;
     padding-bottom: .6rem;
     font-size: 1.5rem;
     font-weight: 600;
     color: $afs-text;
-
     // korte groene lijn onder de titel
     &::after {
         content: "";
@@ -683,40 +625,27 @@ $afs-muted: #6f746b; // grijsgroen voor bijzaken
     }
 }
 
-// == Footer: lichtgroen verloop, pijltjes, zwarte balk onderaan =============================
+// == Footer: lichtgroen verloop, pijltjes, zwarte balk onderaan ==
 
 footer#bottom {
     background: linear-gradient(180deg, $afs-footer-top 0%, #ddefd0 50%, $afs-footer-bottom 100%) !important;
     color: $afs-text !important;
-
     :is(h1, h2, h3, h4, h5, h6, .h5) {
         color: $afs-text !important;
         font-weight: 600;
     }
-
     #footer {
         color: $afs-text !important;
         border-color: transparent !important;
         background: none !important;
-
-        > section, .o_colored_level {
-            background: none !important;
-        }
-
-        p, li {
-            color: $afs-text;
-        }
-
+        > section, .o_colored_level { background: none !important; }
+        p, li { color: $afs-text; }
         a:not(.btn) {
             color: $afs-text !important;
             text-decoration: none;
-
-            &:hover {
-                color: $afs-green !important;
-            }
+            &:hover { color: $afs-green !important; }
         }
-
-        // Lijsten met gewone links (zoals "Handige links"): een groen pijltje ervoor.
+        // lijsten met gewone links: een groen pijltje ervoor
         ul.list-unstyled > li:not(:has(> i, > .fa)) > a:first-child::before {
             content: "";
             display: inline-block;
@@ -727,13 +656,8 @@ footer#bottom {
             border-bottom: 2px solid $afs-green;
             transform: rotate(-45deg);
         }
-
-        // Icoontjes (contact, e-mail, telefoon): groen
-        li > i.fa, li > .fa {
-            color: $afs-green;
-        }
-
-        // Sociale media: witte bolletjes met een groen icoon
+        li > i.fa, li > .fa { color: $afs-green; }
+        // sociale media: witte bolletjes met een groen icoon
         .s_social_media a > i.fa {
             width: 2.2em;
             height: 2.2em;
@@ -743,24 +667,19 @@ footer#bottom {
             color: $afs-green !important;
         }
     }
-
     .o_footer_copyright {
         background-color: #000 !important;
         color: #fff !important;
         border: 0 !important;
         font-weight: 600;
-
-        .text-muted, span, a:not(.badge) {
-            color: #fff !important;
-        }
+        .text-muted, span, a:not(.badge) { color: #fff !important; }
     }
 }
 
-// == Witte tekst op groen ===================================================================
-// Ook als de editor een kleur op de tekst zette (bv. themakleur 1, die nu groen is): die zou anders
-// onzichtbaar worden op de groene knop of banner. Daarom zo sterk (html body #id, !important).
-// Let op: noem hier nergens .btn-outline-primary. Met Thema > Knop > Primaire stijl "Omlijnd" plakt Odoo
-// (Sass @extend) .btn-primary aan elke regel met .btn-outline-primary, ook aan die van deze module.
+// == Witte tekst op groen ==
+// Ook als de editor een kleur op de tekst zette, daarom zo sterk (html body #id, !important).
+// Noem hier nergens .btn-outline-primary: met Thema > Knop > Primaire stijl "Omlijnd" plakt Odoo (@extend)
+// .btn-primary aan elke regel met .btn-outline-primary.
 
 html body #wrapwrap, html body .modal {
     :is(.btn-primary, .btn-fill-primary, .o_wsale_product_btn_primary) {
@@ -782,11 +701,11 @@ html body #o_wsale_products_header {
 }
 
 html body #wrapwrap .o_wsale_product_btn_primary {
-background-color: 
-#6ba342 !important;
-border-color: 
-#6ba342 !important;
+    background-color: $afs-green !important;
+    border-color: $afs-green !important;
 }
+
+// == Contactpagina: titel als groene banner ==
 
 #wrapwrap:has(#contactus_form) #wrap > .s_title {
     position: relative;
@@ -794,14 +713,13 @@ border-color:
     align-items: center;
     justify-content: center;
     box-sizing: border-box;
-    height: 5.475rem !important;
+    height: 6rem !important;
     min-height: 0 !important;
     margin: 0 0 .5rem !important;
     padding: 0 1rem !important;
     overflow: hidden;
-    background: repeating-linear-gradient(90deg, #6da545 0 5px, #72a94b 5px 6px, #6ba342 6px 11px) !important;
+    background: $afs-stripes !important;
     text-align: center;
- 
     .s_parallax_bg,
     .o_we_bg_filter {
         display: none !important;
@@ -820,25 +738,16 @@ border-color:
         margin: 0 !important;
         padding: 0 !important;
         color: #fff !important;
-        font-family: $afs-font;
-        font-size: 1.75rem !important;
-        font-weight: 600;
-        line-height: 1.3;
-        text-align: center;
+        @include afs-banner-text;
         letter-spacing: normal;
         text-transform: none;
         text-shadow: none;
         height: auto !important;
         min-height: 0 !important;
         transform: none;
- 
-        // Alles wat de editor op de tekst zette (andere grootte, dikte, opvulling, regelafbreking) telt niet mee.
-        &::before, &::after {
-            content: none !important;
-        }
-        br {
-            display: none !important;
-        }
+        // opmaak die de editor op de tekst zette, telt niet mee
+        &::before, &::after { content: none !important; }
+        br { display: none !important; }
         * {
             display: inline !important;
             margin: 0 !important;

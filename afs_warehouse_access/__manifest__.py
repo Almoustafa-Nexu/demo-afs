@@ -1,7 +1,7 @@
 {
     'name': "AFS - Magazijntoegang",
     'summary': "Een klein magazijn enkel openstellen voor gekozen apotheken",
-    'version': '19.0.1.1.3',
+    'version': '19.0.1.1.4',
     'category': 'Website/eCommerce',
     'author': "Nexu",
     'depends': ['website_sale_stock'],

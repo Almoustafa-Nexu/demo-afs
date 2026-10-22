@@ -13,8 +13,6 @@ class StockWarehouse(models.Model):
     )
 
     def _afs_closed_for(self, partner):
-        """Magazijnen die niet openstaan voor deze klant (of voor de apotheek waar hij bij hoort)."""
+        """Magazijnen die niet openstaan voor de apotheek van deze klant."""
         pharmacy = partner.commercial_partner_id
-        return self.sudo().search([('afs_partner_ids', '!=', False)]).filtered(
-            lambda warehouse: pharmacy not in warehouse.afs_partner_ids
-        )
+        return self.sudo().search([('afs_partner_ids', '!=', False)]).filtered(lambda w: pharmacy not in w.afs_partner_ids)

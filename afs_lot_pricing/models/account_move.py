@@ -15,9 +15,8 @@ class AccountMove(models.Model):
     _inherit = 'account.move'
 
     def _afs_split_lot_lines(self):
-        """Conceptfactuur of creditfactuur: een regel per geleverde partij, aan de prijs van die partij.
-        Alleen als de prijs per partij gaat (product en prijslijst met het vinkje, regel op kostprijs of actie)
-        en niet met de hand aangepast werd."""
+        """Concept(credit)factuur: een regel per geleverde partij aan haar prijs, als de prijs per partij gaat en
+        niet met de hand aangepast werd."""
         for move in self.filtered(lambda m: m.state == 'draft' and m.move_type in ('out_invoice', 'out_refund')):
             for line in move.invoice_line_ids.filtered(lambda l: l.display_type == 'product' and l.product_id
                                                        and l.quantity > 0 and not l.afs_lot_id and l.sale_line_ids):
@@ -27,8 +26,8 @@ class AccountMove(models.Model):
                     move._afs_split_line(line, rule)
 
     def _afs_split_line(self, line, rule):
-        """Verdeel een factuurregel over de partijen die nog te factureren (of te crediteren) zijn, de oudste
-        levering eerst. Wat er meer op staat dan er per partij openstaat, blijft aan de prijs van de order."""
+        """Verdeel een factuurregel over de partijen die nog te factureren (of crediteren) zijn, oudste levering
+        eerst; wat er meer op staat, blijft aan de prijs van de order."""
         self.ensure_one()
         refund = self.move_type == 'out_refund'
         product, uom = line.product_id, line.product_uom_id
@@ -47,7 +46,7 @@ class AccountMove(models.Model):
         if not parts:
             return
 
-        # de orderregel noemt al haar partij (of voorverkoop): die regel eraf, de factuur noemt de geleverde partij
+        # de factuur noemt de geleverde partij, niet die van de orderregel
         name = strip_source_label(line.name) or product.display_name
         order_date = sale_line._get_order_date()  # de prijs van bij het bestellen, ook als de actie intussen afliep
         show_discount = rule._is_discount_feature_enabled()
@@ -89,10 +88,8 @@ class AccountMove(models.Model):
             self.write({'invoice_line_ids': new_lines})
 
     def _afs_invoiced_per_lot(self, sale_line, product):
-        """Wat er van deze orderregel al per partij gefactureerd is, buiten deze factuur.
-
-        :return: ({partij: aantal, facturen min creditfacturen}, {partij: (gemiddelde prijs, korting %)})
-        """
+        """Al gefactureerd per partij voor deze orderregel, buiten deze factuur.
+        :return: ({partij: facturen min creditfacturen}, {partij: (gemiddelde prijs, korting %)})"""
         qty, base, net, count = (defaultdict(float) for _i in range(4))
         for other in sale_line.invoice_lines:
             lot = other.afs_lot_id

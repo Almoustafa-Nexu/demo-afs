@@ -17,30 +17,23 @@ class ProductTemplate(models.Model):
             template.afs_shop_allowed = template.id not in blocked.ids
 
     def _search_afs_shop_allowed(self, operator, value):
-        """Zoeken op dit veld: Odoo 19 vraagt 'in' [True] (toegelaten) of 'in' [False] (geblokkeerd)."""
+        # Odoo 19 zoekt met 'in' [True] (toegelaten) of 'in' [False] (geblokkeerd)
         if operator != 'in':
             return NotImplemented
         blocked = self._afs_blocked_for(self.env.user.partner_id)
-        if True in value:
-            return [('id', 'not in', blocked.ids)]
-        return [('id', 'in', blocked.ids)]
+        return [('id', 'not in' if True in value else 'in', blocked.ids)]
 
     @api.model
     def _afs_blocked_for(self, partner):
-        """Producten die alleen vanuit een magazijn naar de klant gaan dat niet voor hem openstaat.
-
-        Kijkt naar de routes op het product, zoals "Levering vanuit Markgraven". Een route die ook
-        vanuit een ander magazijn levert, zoals Aanvullen per order (MTO), blijft open.
-        """
+        """Producten waarvan de route alleen levert vanuit een magazijn dat niet openstaat voor deze klant.
+        Een route die ook elders levert (bv. MTO) blijft open."""
         closed = self.env['stock.warehouse']._afs_closed_for(partner)
         if not closed:
             return self.browse()
         routes = self.env['stock.route'].sudo().search([('product_selectable', '=', True)])
-        closed_routes = routes.filtered(lambda route: _delivers_only_from(route, closed))
-        return self.sudo().search([('route_ids', 'in', closed_routes.ids)])
+        return self.sudo().search([('route_ids', 'in', routes.filtered(lambda r: _delivers_only_from(r, closed)).ids)])
 
 
 def _delivers_only_from(route, warehouses):
-    """Levert deze route alleen vanuit deze magazijnen aan klanten?"""
     to_customer = route.rule_ids.filtered(lambda rule: rule.location_dest_id.usage == 'customer')
     return bool(to_customer) and all(rule.location_src_id.warehouse_id in warehouses for rule in to_customer)

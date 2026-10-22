@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-
-    <!-- Bevestigingspagina na afrekenen zonder betaling (controllers/checkout.py).
-         Odoo toont het bedankje normaal alleen na een betaling. -->
+    <!-- Bedankt na afrekenen zonder betaling: Odoo toont dat anders alleen na een betaling -->
     <template id="confirmation_no_payment" inherit_id="website_sale.confirmation">
         <xpath expr="//div[@id='order_name']" position="before">
             <div t-if="order.state == 'sent' and not tx_sudo and order.amount_total" class="mb-3">
@@ -11,5 +9,4 @@
             </div>
         </xpath>
     </template>
-
 </odoo>

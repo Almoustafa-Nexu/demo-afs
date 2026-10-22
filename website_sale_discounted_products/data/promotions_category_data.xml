@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<odoo>
-    <!-- Eenmalig: "Lopende acties" vult zich vanzelf met de producten in actie -->
-    <function model="product.public.category" name="_afs_default_promotions_category"/>
-</odoo>

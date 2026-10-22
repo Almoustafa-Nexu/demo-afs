@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-
-    <!-- Website: vinkje "Personeelsshop" onder het websitedomein -->
+    <!-- Website: vinkje Personeelsshop -->
     <record id="view_website_form_afs_staff" model="ir.ui.view">
         <field name="name">website.form.afs.staff</field>
         <field name="model">website</field>
@@ -12,5 +11,4 @@
             </field>
         </field>
     </record>
-
 </odoo>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_order_form_afs_held_by" model="ir.ui.view">
+        <field name="name">sale.order.form.afs.held.by</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <!-- Na opslaan: wie de partijen vasthoudt als een deel op "Nog niet op voorraad" staat -->
+            <xpath expr="//sheet/div[@name='button_box']" position="after">
+                <div class="alert alert-warning" role="alert" invisible="not afs_held_by">
+                    <field name="afs_held_by" nolabel="1" readonly="1"/>
+                </div>
+            </xpath>
+            <!-- Orderregels: de partij van elke regel; op een offerte kan je ze kiezen (alleen vrije partijen) -->
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_qty']" position="before">
+                <!-- Partijen zijn voorraadgegevens: alleen voor wie rechten op Voorraad heeft -->
+                <field name="afs_lot_choices" column_invisible="1" groups="stock.group_stock_user"/>
+                <field name="afs_lot_fixed" column_invisible="1" groups="stock.group_stock_user"/>
+                <field name="afs_split" column_invisible="1"/>
+                <field name="afs_presale_line_id" column_invisible="1" groups="stock.group_stock_user"/>
+                <field name="afs_lot_id" optional="show" width="170px" options="{'no_create': True, 'no_open': True}"
+                       domain="[('id', 'in', afs_lot_choices)]"
+                       readonly="parent.state not in ('draft', 'sent')"
+                       invisible="not afs_lot_id and not afs_lot_choices" groups="stock.group_stock_user"/>
+            </xpath>
+            <!-- Nieuwe offerte, nog niet opgeslagen: de prijzen per partij komen bij Opslaan -->
+            <xpath expr="//notebook" position="before">
+                <div class="alert alert-info mb-2" role="status" invisible="id or not order_line">
+                    Producten met korting per partij: kies bij Partij zelf een partij, dan staat haar prijs er meteen.
+                    Laat je Partij leeg, dan wordt de regel bij <strong>Opslaan</strong> verdeeld over de partijen op
+                    voorraad (de oudste eerst); het gemiddelde dat je tot dan ziet, is nog niet de echte prijs.
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-
-    <!-- Product, tabblad Verkoop, blok Winkel: "Max. per personeelslid per jaar" -->
+    <!-- Product, tabblad Verkoop: Max. per personeelslid per jaar -->
     <record id="product_template_form_view_afs_staff" model="ir.ui.view">
         <field name="name">product.template.form.afs.staff</field>
         <field name="model">product.template</field>
@@ -12,5 +11,4 @@
             </field>
         </field>
     </record>
-
 </odoo>

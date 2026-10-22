@@ -12,17 +12,11 @@ class ProductTemplate(models.Model):
     )
 
     def _afs_staff_limit_info(self):
-        """Productpagina in de personeelsshop: de limiet en hoeveel het personeelslid nog mag.
-
-        Wat al in de winkelwagen zit, telt mee.
-        :return: {'limit': 15, 'remaining': 3}, of None als er geen limiet geldt
-        """
+        """Productpagina: {'limit', 'remaining'} (de winkelwagen telt mee), of None zonder limiet."""
         self.ensure_one()
         limit = self.afs_staff_year_limit
-        website = self.env['website'].get_current_website()
-        if not (limit and website.afs_staff_shop) or self.env.user._is_public():
+        if not (limit and self.env['website'].get_current_website().afs_staff_shop) or self.env.user._is_public():
             return None
         ordered = self.env['sale.order']._afs_staff_ordered_by(self.env.user.partner_id, self)
-        cart_lines = request.cart.order_line.filtered(lambda line: line.product_template_id == self)
-        in_cart = sum(cart_lines.mapped('product_uom_qty'))
+        in_cart = sum(request.cart.order_line.filtered(lambda l: l.product_template_id == self).mapped('product_uom_qty'))
         return {'limit': limit, 'remaining': max(int(limit - ordered - in_cart), 0)}

@@ -12,8 +12,7 @@ class StockMove(models.Model):
         return self.purchase_line_id._afs_lot_name() if self.purchase_line_id else False
 
     def _afs_preferred_lot(self):
-        """De partij van de orderregel: de partij waarvan de apotheek de prijs op haar order heeft. Een partij op
-        voorraad, of de partij die binnenkwam met de voorverkoopregel. Leeg: geen voorkeur (de gewone volgorde)."""
+        """De partij waarvan de apotheek de prijs op haar order heeft (ook die van haar voorverkoopregel), of leeg."""
         self.ensure_one()
         line = self.sale_line_id or self.move_dest_ids.sale_line_id[:1]
         if not line or self.product_id.tracking != 'lot':
@@ -28,10 +27,8 @@ class StockMove(models.Model):
         return self.env['stock.lot']
 
     def _update_reserved_quantity(self, need, location_id, lot_id=None, package_id=None, owner_id=None, strict=True):
-        """Levering aan een apotheek: eerst de stuks uit de partij van haar orderregel, zodat de factuur dezelfde
-        prijs heeft als haar order. Komen meer partijen tegelijk binnen (stappen in één voorverkoop), dan krijgt
-        zo elke bestelling haar eigen partij, ook als een latere bestelling eerst gereserveerd wordt. Is die partij
-        op (bv. 29 ontvangen in plaats van 30), dan de rest in de gewone volgorde."""
+        """Levering aan een apotheek: eerst uit de partij van haar orderregel (zelfde prijs op de factuur als op de
+        order), daarna de gewone volgorde."""
         preferred = self._afs_preferred_lot() if not (lot_id or strict) else self.env['stock.lot']
         if not preferred:
             return super()._update_reserved_quantity(need, location_id, lot_id=lot_id, package_id=package_id,
@@ -45,7 +42,7 @@ class StockMove(models.Model):
         return taken
 
     def _prepare_move_line_vals(self, quantity=None, reserved_quant=None):
-        """Bij een ontvangst van de leverancier staat de partijnaam al ingevuld (aan te passen in Details)."""
+        """Ontvangst van de leverancier: de partijnaam staat al ingevuld."""
         vals = super()._prepare_move_line_vals(quantity=quantity, reserved_quant=reserved_quant)
         if (not vals.get('lot_id') and not vals.get('lot_name') and self.product_id.tracking == 'lot'
                 and self.location_id.usage == 'supplier' and self.picking_type_id.use_create_lots):
@@ -54,8 +51,8 @@ class StockMove(models.Model):
         return vals
 
     def _prepare_procurement_qty(self):
-        """Voorverkoop: wat nog vrij is op een inkoopofferte in voorverkoop, telt als voorraad. Een bevestigde
-        bestelling die erin past, maakt dus geen nieuwe inkoopofferte aan; alleen wat erbuiten valt."""
+        """Wat nog vrij is in een voorverkoop telt als voorraad: een bevestigde bestelling die erin past, maakt
+        geen nieuwe inkoopofferte."""
         consumed = self.env.context.get('consumed_from_stock_dict')
         if consumed is None:
             consumed = defaultdict(float)

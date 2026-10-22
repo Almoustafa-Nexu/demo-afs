@@ -1,7 +1,7 @@
 {
     'name': "AFS - Bestelflow",
     'summary': "Afrekenen als offerte; conceptfacturen na levering en ontvangst",
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.1.1',
     'category': 'Sales/Sales',
     'author': "Nexu",
     'depends': ['website_sale', 'sale_stock', 'purchase_stock'],

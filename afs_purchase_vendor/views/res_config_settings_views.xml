@@ -8,7 +8,7 @@
         <field name="arch" type="xml">
             <setting id="get_order_warnings" position="after">
                 <setting id="afs_purchase_vendor_only"
-                         help="Op een inkoop kies je alleen producten met deze leverancier (product, tabblad Inkoop). Leveren aan volgt het magazijn waaruit de producten naar de apotheken gaan.">
+                         help="Kies je een product op een nieuwe inkoop, dan komt de leverancier van het product bovenaan (je mag hem aanpassen). Leveren aan volgt het magazijn waaruit de producten naar de apotheken gaan.">
                     <field name="afs_purchase_vendor_only"/>
                 </setting>
             </setting>

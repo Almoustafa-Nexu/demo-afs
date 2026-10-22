@@ -1,11 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- ============================================================
-         Blokken "Promoties" en "Shop" in Bewerken > Blokken > Webshop
-         ============================================================ -->
-
-    <!-- Tegel "Webshop" naast "Catalogus", met de twee blokken erin -->
+    <!-- Bewerken > Blokken: tegel Webshop met de blokken Promoties en Shop -->
     <template id="snippets" inherit_id="website.snippets" name="Blokken Promoties en Shop">
         <xpath expr="//t[@snippet-group='catalog']" position="after">
             <t snippet-group="promotions" t-snippet="website.s_snippet_group" string="Webshop"
@@ -43,13 +39,7 @@
         </t>
     </template>
 
-    <!-- ============================================================
-         Bouwstenen van beide blokken
-         ============================================================ -->
-
-    <!-- Gemeenschappelijk: werkt als Odoo's blok "Producten" (zelfde opties en opmaak), met onze
-         productkaart. Elk blok geeft mee: snippet_title, snippet_lead, snippet_filter,
-         preview_items en preview_empty_text. -->
+    <!-- Gemeenschappelijk: zoals Odoo's blok Producten, met onze productkaart -->
     <template id="s_dynamic_snippet_webshop" name="Webshopblok">
         <t t-set="default_design_classes"
            t-value="request and request.env['website'].get_current_website().shop_opt_products_design_classes or ''"/>
@@ -89,9 +79,7 @@
         </xpath>
     </template>
 
-    <!-- Voorbeeld in het venster "Blok invoegen": je echte producten in plaats van Odoo's
-         voorbeeldmeubels. Odoo haalt .s_dialog_preview weg zodra je het blok toevoegt;
-         daarna laadt het blok zelf de producten. -->
+    <!-- Voorbeeld in Blok invoegen: je echte producten (Odoo haalt het weg zodra het blok er staat) -->
     <template id="s_dynamic_snippet_preview" name="Voorbeeld dynamisch blok">
         <div class="s_dialog_preview">
             <div class="row">
@@ -113,8 +101,7 @@
         </div>
     </template>
 
-    <!-- Productkaart van beide blokken: Odoo's standaardkaart, maar bij een korting met
-         percentage, oude prijs (Voorheen), nieuwe prijs (Nu) en een live teller. -->
+    <!-- Productkaart van beide blokken: Odoo's kaart met de prijs met korting -->
     <template id="dynamic_filter_template_product_product_promo"
               inherit_id="website_sale.dynamic_filter_template_product_product_products_item"
               primary="True"
@@ -123,8 +110,6 @@
             <div class="product_price" aria-label="Price information">
                 <t t-if="not data.get('prevent_zero_price_sale') and not data.get('is_sample')"
                    t-call="website_sale_discounted_products.promo_price">
-                    <!-- Oude prijs: die van Odoo, of anders de verkoopprijs
-                         (Odoo geeft bij o.a. een vaste prijsregel geen oude prijs mee) -->
                     <t t-set="promo_old" t-value="max(data.get('list_price') or 0, record.list_price or 0)"/>
                     <t t-set="promo_new" t-value="data['price']"/>
                     <t t-set="promo_end" t-value="data.get('discount_end_date')"/>

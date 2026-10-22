@@ -2,7 +2,7 @@
     'name': "AFS - Webshop promoties",
     'summary': "Promoties met korting en aftelling; acties openen en sluiten in de webshop; "
                "shop met een blok per categorie; Lopende acties vult zich vanzelf",
-    'version': '19.0.1.4.9',
+    'version': '19.0.1.5.1',
     'category': 'Website/Website',
     'author': "Nexu",
     'depends': ['website_sale', 'website_sale_stock'],
@@ -13,7 +13,6 @@
         'views/product_public_category_views.xml',
         'views/shop_templates.xml',
         'views/snippets.xml',
-        'data/promotions_category_data.xml',
     ],
     'assets': {
         'web.assets_frontend': [

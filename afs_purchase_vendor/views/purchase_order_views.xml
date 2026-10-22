@@ -1,21 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Inkoop: bij een gekozen leverancier toont het productveld alleen zijn producten (en diensten) -->
     <record id="purchase_order_form_afs_vendor" model="ir.ui.view">
         <field name="name">purchase.order.form.afs.vendor</field>
         <field name="model">purchase.order</field>
         <field name="inherit_id" ref="purchase.purchase_order_form"/>
         <field name="arch" type="xml">
             <field name="partner_id" position="after">
-                <field name="afs_vendor_id" invisible="1"/>
+                <field name="afs_seen_products" invisible="1"/>
             </field>
-            <xpath expr="//field[@name='order_line']/list/field[@name='product_id']" position="attributes">
-                <attribute name="domain">[('purchase_ok', '=', True), '|', ('company_id', '=', False), ('company_id', 'parent_of', parent.company_id)] + (['|', ('type', '=', 'service'), ('seller_ids.partner_id', 'child_of', parent.afs_vendor_id)] if parent.afs_vendor_id else [])</attribute>
-            </xpath>
-            <xpath expr="//field[@name='order_line']/form//field[@name='product_id']" position="attributes">
-                <attribute name="domain">[('purchase_ok', '=', True), '|', ('company_id', '=', False), ('company_id', '=', parent.company_id)] + (['|', ('type', '=', 'service'), ('seller_ids.partner_id', 'child_of', parent.afs_vendor_id)] if parent.afs_vendor_id else [])</attribute>
-            </xpath>
         </field>
     </record>
 

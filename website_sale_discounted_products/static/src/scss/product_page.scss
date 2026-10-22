@@ -1,6 +1,13 @@
 // Productpagina: het prijsblok met de labels links en de bedragen ernaast.
 // Alleen de schikking; kleuren en lettergroottes komen uit de huisstijl (AFS-huisstijl).
 
+// Met een korting staan de prijsregels onder elkaar, links (Odoo zet ze naast elkaar, rechts)
+div[name='product_price_container']:has(> .o_promo_table) {
+    flex-direction: column;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+}
+
 .o_promo_table {
     display: grid;
     grid-template-columns: max-content auto;

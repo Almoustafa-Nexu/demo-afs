@@ -1,103 +1,84 @@
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
-from odoo.fields import Domain
 
 
 class PurchaseOrder(models.Model):
     _inherit = 'purchase.order'
 
-    afs_vendor_id = fields.Many2one(
-        'res.partner', string="Producten van", compute='_compute_afs_vendor_id',
-        help="De leverancier waarvan je op deze inkoop producten kan kiezen. Leeg: alle producten "
-             "(Inkoop per leverancier staat uit, of er is nog geen leverancier gekozen).",
-    )
-
-    @api.depends('partner_id', 'company_id', 'company_id.afs_purchase_vendor_only')
-    def _compute_afs_vendor_id(self):
-        for order in self:
-            if order._afs_enabled():
-                order.afs_vendor_id = order.partner_id.commercial_partner_id
-            else:
-                order.afs_vendor_id = False
+    # Onthoudt welke producten al op de inkoop stonden: alleen een nieuw gekozen product kiest de leverancier
+    afs_seen_products = fields.Char(string="Producten gezien", store=False, copy=False)
 
     def _afs_enabled(self):
         return bool((self.company_id or self.env.company).afs_purchase_vendor_only)
 
-    # ------------------------------------------------------------
-    # Alleen producten van de leverancier
-    # ------------------------------------------------------------
+    def _afs_product_lines(self):
+        return self.order_line.filtered(lambda l: l.product_id and not l.display_type and l.product_id.type != 'service')
 
-    def _afs_wrong_lines(self):
-        """Regels met een product waar deze leverancier niet op staat (product, tabblad Inkoop).
-        Diensten (bv. transportkosten) en aanbetalingen tellen niet mee."""
-        self.ensure_one()
+    def _afs_vendor_of_product(self, product):
+        """De eerste leverancier van het product (tabblad Inkoop) die voor dit bedrijf geldt."""
+        company = self.company_id or self.env.company
+        sellers = product.sudo().seller_ids.filtered(
+            lambda s: s.partner_id and (not s.company_id or s.company_id == company)
+            and (not s.product_id or s.product_id == product))
+        return sellers[:1].partner_id.commercial_partner_id
+
+    # ---- De leverancier volgt het product ----
+
+    @api.onchange('order_line')
+    def _afs_onchange_order_line_vendor(self):
+        """Nieuw product dat de leverancier bovenaan niet verkoopt: de leverancier van dat product komt bovenaan."""
+        if not self._afs_enabled():
+            return
+        product_ids = set(self._afs_product_lines().product_id.ids)
+        if self.afs_seen_products:
+            seen = {int(i) for i in self.afs_seen_products.split(',') if i}
+        else:
+            seen = set(self._origin._afs_product_lines().product_id.ids) if self._origin else set()
+        self.afs_seen_products = ',' + ','.join(str(i) for i in sorted(product_ids)) + ','
         vendor = self.partner_id.commercial_partner_id
-        if not vendor:
-            return self.env['purchase.order.line']
-        return self.order_line.filtered(
-            lambda line: line.product_id and not line.display_type and not line.is_downpayment
-            and line.product_id.type != 'service' and not line._afs_sold_by(vendor)
-        )
-
-    def _afs_wrong_message(self, lines):
-        vendor = self.partner_id.commercial_partner_id
-        return self.env._(
-            "%(vendor)s levert niet: %(products)s.\n\n"
-            "Kies een product van %(vendor)s, of zet %(vendor)s als leverancier op het product (tabblad Inkoop). "
-            "Uitzetten kan in Inkoop > Configuratie > Instellingen > Inkoop per leverancier.",
-            vendor=vendor.display_name,
-            products=', '.join(lines.product_id.mapped('display_name')),
-        )
-
-    def _afs_check_vendor_products(self):
-        for order in self:
-            if not order._afs_enabled() or order.state not in ('draft', 'sent', 'to approve'):
+        for line in self._afs_product_lines():
+            if line.product_id.id in seen or (vendor and line._afs_sold_by(vendor)):
                 continue
-            wrong = order._afs_wrong_lines()
-            if wrong:
-                raise ValidationError(order._afs_wrong_message(wrong))
-
-    @api.constrains('partner_id')
-    def _afs_check_partner_products(self):
-        self._afs_check_vendor_products()
+            if new_vendor := self._afs_vendor_of_product(line.product_id):
+                self.partner_id = new_vendor
+                break
 
     @api.onchange('partner_id')
     def _afs_onchange_partner_products(self):
-        """Andere leverancier gekozen terwijl er al producten op staan: meteen melden."""
-        if not self.afs_vendor_id:
+        """Zelf een andere leverancier gekozen: mag, met een venster met de knop Accepteer (static/src/js)."""
+        if not self._afs_enabled():
             return None
-        wrong = self._afs_wrong_lines()
-        if wrong:
-            return {'warning': {
-                'title': self.env._("Producten van een andere leverancier"),
-                'message': self._afs_wrong_message(wrong),
-            }}
-        return None
+        vendor = self.partner_id.commercial_partner_id
+        if not vendor:
+            return None
+        wrong = self._afs_product_lines().filtered(lambda l: not l.is_downpayment and not l._afs_sold_by(vendor))
+        if not wrong:
+            return None
+        terug = self._afs_vendor_of_product(wrong[0].product_id)
+        # Odoo geeft van een melding alleen titel, tekst en type door: de leverancier om naar terug te gaan zit in het type
+        return {'warning': {
+            'type': 'afs_accept:%s:%s' % (terug.id, terug.display_name) if terug else 'afs_accept',
+            'title': self.env._("Andere leverancier dan op het product"),
+            'message': self.env._(
+                "%(vendor)s staat niet als leverancier op: %(products)s.\n\n"
+                "Klik op Accepteer om %(vendor)s te houden, of op Weigeren om terug te gaan naar %(back)s. "
+                "Wil je dat het product er voortaan bij hoort, zet %(vendor)s dan als leverancier op het product "
+                "(tabblad Inkoop).",
+                vendor=vendor.display_name,
+                products=', '.join(wrong.product_id.mapped('display_name')),
+                back=terug.display_name or self.env._("een lege leverancier"),
+            ),
+        }}
 
-    def _get_product_catalog_domain(self):
-        """Catalogus: ook daar alleen producten van de leverancier (en diensten)."""
-        domain = super()._get_product_catalog_domain()
-        if self.afs_vendor_id:
-            domain &= Domain('type', '=', 'service') | Domain('seller_ids.partner_id', 'child_of', self.afs_vendor_id.id)
-        return domain
-
-    # ------------------------------------------------------------
-    # Leveren aan volgt het product
-    # ------------------------------------------------------------
+    # ---- Leveren aan volgt het product ----
 
     def _afs_follows_products(self):
-        """Leveren aan volgt de producten alleen bij een inkoop die je met de hand maakt: geen brondocument en niets
-        besteld voor een order of een aanvulregel. Een inkoop die Odoo zelf maakte, hoort bij een keten
-        (bv. Markgraven bevoorraden via AFS): die blijft zoals ze is."""
+        """Alleen een inkoop met de hand: geen brondocument, niets voor een order of aanvulregel."""
         self.ensure_one()
-        if not self._afs_enabled() or self.origin:
-            return False
-        lines = self.order_line
-        return not lines.move_dest_ids and not lines.orderpoint_id
+        return self._afs_enabled() and not self.origin and not (self.order_line.move_dest_ids or
+                                                                self.order_line.orderpoint_id)
 
     def _afs_product_warehouse(self, product):
-        """Magazijn waaruit dit product naar de klanten vertrekt (de route van het product), zoals Odoo het kiest
-        bij een bestelling. Daar komt ook de inkoop binnen, net als bij een inkoop die Odoo zelf maakt."""
+        """Magazijn waaruit dit product naar de klanten gaat (zijn route), zoals Odoo het kiest bij een bestelling."""
         company = self.company_id or self.env.company
         base = self._get_picking_type(company.id).warehouse_id
         customers = self.env.ref('stock.stock_location_customers', raise_if_not_found=False)
@@ -107,13 +88,10 @@ class PurchaseOrder(models.Model):
         return rule.location_src_id.warehouse_id
 
     def _afs_line_warehouses(self):
-        """{magazijn: producten} voor de productregels van deze inkoop."""
+        """{magazijn: producten} van de productregels."""
         res = {}
-        for line in self.order_line:
-            if not line.product_id or line.display_type:
-                continue
-            warehouse = self._afs_product_warehouse(line.product_id)
-            if warehouse:
+        for line in self.order_line.filtered(lambda l: l.product_id and not l.display_type):
+            if warehouse := self._afs_product_warehouse(line.product_id):
                 res[warehouse] = res.get(warehouse, self.env['product.product']) | line.product_id
         return res
 
@@ -140,7 +118,7 @@ class PurchaseOrder(models.Model):
 
     @api.onchange('picking_type_id')
     def _afs_onchange_deliver_to_warning(self):
-        """Leveren aan met de hand op een ander magazijn gezet: waarschuwen."""
+        """Leveren aan met de hand naar een ander magazijn: waarschuwen."""
         if not self._afs_follows_products():
             return None
         per_warehouse = self._afs_line_warehouses()
@@ -148,33 +126,26 @@ class PurchaseOrder(models.Model):
             return None
         warehouse, products = next(iter(per_warehouse.items()))
         chosen = self.picking_type_id.warehouse_id
-        if chosen and chosen != warehouse:
-            return {'warning': {
-                'title': self.env._("Ander magazijn"),
-                'message': self.env._(
-                    "%(products)s gaat naar de apotheken vanuit %(warehouse)s. Kies bij Leveren aan %(type)s, "
-                    "anders komt de inkoop binnen in %(chosen)s, dat dit product niet levert.",
-                    products=', '.join(products.mapped('display_name')),
-                    warehouse=warehouse.name,
-                    type=warehouse.in_type_id.display_name,
-                    chosen=chosen.name,
-                ),
-            }}
-        return None
+        if not chosen or chosen == warehouse:
+            return None
+        return {'warning': {
+            'title': self.env._("Ander magazijn"),
+            'message': self.env._(
+                "%(products)s gaat naar de apotheken vanuit %(warehouse)s. Kies bij Leveren aan %(type)s, "
+                "anders komt de inkoop binnen in %(chosen)s, dat dit product niet levert.",
+                products=', '.join(products.mapped('display_name')),
+                warehouse=warehouse.name,
+                type=warehouse.in_type_id.display_name,
+                chosen=chosen.name,
+            ),
+        }}
 
 
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'
 
     def _afs_sold_by(self, vendor):
-        """Staat deze leverancier (of een contactpersoon ervan) als leverancier op het product (tabblad Inkoop)?"""
+        """Staat deze leverancier (of een contact ervan) op het product (tabblad Inkoop)?"""
         self.ensure_one()
-        product = self.product_id
-        return any(
-            seller.partner_id.commercial_partner_id == vendor and (not seller.product_id or seller.product_id == product)
-            for seller in product.sudo().seller_ids
-        )
-
-    @api.constrains('product_id')
-    def _afs_check_vendor_product(self):
-        self.order_id._afs_check_vendor_products()
+        return any(s.partner_id.commercial_partner_id == vendor and (not s.product_id or s.product_id == self.product_id)
+                   for s in self.product_id.sudo().seller_ids)

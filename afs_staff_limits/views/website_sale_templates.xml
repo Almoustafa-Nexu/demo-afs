@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-
-    <!-- Productpagina in de personeelsshop: onder "In winkelwagen" staat hoeveel er nog mag -->
+    <!-- Productpagina personeelsshop: onder In winkelwagen hoeveel er nog mag -->
     <template id="product_staff_limit" inherit_id="website_sale.cta_wrapper" name="Personeelslimiet op de productpagina">
         <xpath expr="//div[@id='o_wsale_cta_wrapper']" position="after">
             <t t-set="afs_staff_limit" t-value="product and product._afs_staff_limit_info()"/>
@@ -17,5 +16,4 @@
             </div>
         </xpath>
     </template>
-
 </odoo>

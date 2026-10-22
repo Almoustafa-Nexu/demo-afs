@@ -1,14 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Productpagina, onder de prijs: het doel van de apotheken samen (naar de volgende stap met meer korting),
-         de voorraad en de stappen in de volgorde van de inkoop.
-             Nog 100 stuks om het doel te bereiken, dan krijg je 20% korting.
-             ✓ Op voorraad: 20 stuks
-             🚚 In voorverkoop: 260 stuks
-             Prijs per stap
-             Normale prijs  nu   100 stuks   10,00 €
-             20% korting          80 stuks    8,00 €
-             40% korting         100 stuks    6,00 € -->
+    <!-- Productpagina, onder de prijs: het doel van de apotheken samen, de voorraad en de prijs per stap -->
     <template id="product_lot_counter" inherit_id="website_sale.product" name="AFS: teller per partij">
         <xpath expr="//div[hasclass('o_wsale_product_details_content_section_price')]" position="after">
             <t t-set="afs" t-value="product._afs_lot_goal(website, max(combination_info.get('list_price') or 0, product.list_price or 0))"/>
@@ -34,28 +26,29 @@
         </xpath>
     </template>
 
-    <!-- Shopkaartje aan de normale prijs met stappen naar korting: een sticker op de foto (ACTIE / tot -40%).
-         Zodra er korting geldt, toont de module Webshop promoties het percentage (-20% korting). -->
+    <!-- Sticker "Actie / tot -40%" op de foto: normale prijs, maar stappen naar korting.
+         Op het shopkaartje en op de kaart van het blok Promoties. -->
+    <template id="teaser_sticker" name="AFS: sticker Actie">
+        <span t-if="afs_teaser" class="o_afs_teaser">Actie<small t-out="afs_teaser"/></span>
+    </template>
+
     <template id="products_item_teaser" inherit_id="website_sale.products_item" name="AFS: sticker Actie op het kaartje">
         <xpath expr="//a[contains(@t-attf-class, 'oe_product_image_link')]" position="after">
             <t t-set="afs_teaser" t-value="product._afs_lot_teaser(website)"/>
-            <span t-if="afs_teaser" class="o_afs_teaser">Actie<small t-out="afs_teaser"/></span>
+            <t t-call="afs_lot_pricing.teaser_sticker"/>
         </xpath>
     </template>
 
-    <!-- Dezelfde sticker op de productkaart van het blok Promoties (bv. op de homepagina) -->
     <template id="promo_card_teaser" inherit_id="website_sale_discounted_products.dynamic_filter_template_product_product_promo"
               name="AFS: sticker Actie op de kaart van het blok Promoties">
         <xpath expr="//a[contains(@t-attf-class, 'oe_product_image_link')]" position="after">
             <t t-set="afs_teaser" t-value="not is_sample and (record.product_tmpl_id if record.is_product_variant else record)._afs_lot_teaser(website)"/>
-            <span t-if="afs_teaser" class="o_afs_teaser">Actie<small t-out="afs_teaser"/></span>
+            <t t-call="afs_lot_pricing.teaser_sticker"/>
         </xpath>
     </template>
 
-    <!-- Webshop: een rij per partij in het overzicht (winkelwagen rechts, afrekenen, bevestiging), met onder het
-         product een korte regel; het bedrag staat rechts.
-             [−45%]  66 × 5,50 €
-             [−20%]  5 × 8,00 €  [voorverkoop] -->
+    <!-- Webshop-overzicht (winkelwagen, afrekenen, bevestiging): een rij per partij, met onder het product
+         "[−45%] 66 × 5,50 €" en eventueel [voorverkoop] -->
     <template id="cart_lot_part" name="AFS: prijs van een partij">
         <div class="o_afs_cart_lot">
             <span t-if="afs_part['discount']" class="o_afs_cart_lot_badge">−<t t-out="('%g' % round(afs_part['discount'], 1)).replace('.', ',')"/>%</span>
@@ -85,7 +78,7 @@
         </xpath>
     </template>
 
-    <!-- Winkelwagen: het blok rechts toont de regels per partij boven de totalen (ook na het aanpassen van een aantal) -->
+    <!-- Winkelwagen: de regels per partij boven de totalen -->
     <template id="cart_total_lots" inherit_id="website_sale.total" name="AFS: regels per partij in de winkelwagen">
         <xpath expr="//div[contains(@t-attf-class, 'o_cart_total')]/table" position="before">
             <div t-if="request and '/shop/cart' in request.httprequest.path" class="o_afs_cart_rows border-bottom mb-3">

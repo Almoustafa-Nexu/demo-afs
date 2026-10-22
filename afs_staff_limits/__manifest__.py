@@ -1,7 +1,7 @@
 {
     'name': "AFS - Personeelslimieten",
     'summary': "Personeelsshop: maximum aantal per product per personeelslid per jaar",
-    'version': '19.0.1.1.1',
+    'version': '19.0.1.1.2',
     'category': 'Website/eCommerce',
     'author': "Nexu",
     'depends': ['website_sale'],

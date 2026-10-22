@@ -1,6 +1,6 @@
 {
     'name': 'AFS - Korting per partij',
-    'version': '19.0.1.15.3',
+    'version': '19.0.1.17.3',
     'summary': 'De apotheek betaalt de prijs van de partij die ze krijgt.',
     'description': """
 Korting per partij
@@ -42,6 +42,7 @@ Korting per partij
         'views/product_views.xml',
         'views/templates.xml',
         'views/purchase_views.xml',
+        'views/sale_views.xml',
     ],
     'installable': True,
     'license': 'LGPL-3',

@@ -1,6 +1,6 @@
 {
     'name': 'AFS - Huisstijl webshop',
-    'version': '19.0.1.3.2',
+    'version': '19.0.1.3.4',
     'summary': 'Groene AFS-huisstijl voor de webshop: menu, titelbanner, productkaartjes, knoppen en footer.',
     'description': """
 Huisstijl webshop
@@ -17,8 +17,7 @@ Alleen opmaak (SCSS), geen inhoud: de webshop krijgt de stijl van afscv.be.
 * Winkelwagen: per partij een korte regel met een groen kortingslabel.
 * Footer: lichtgroen verloop, pijltjes voor de links, zwarte balk onderaan.
 
-Bij de installatie wordt ook de hoofdkleur van het thema (Thema > Kleuren) groen, zodat de onderdelen die Odoo
-zelf kleurt mee veranderen. Verwijder je de module, dan blijft die kleur staan (pas ze aan in de editor).
+De hoofdkleur van het thema zet je zelf: Website > Bewerken > Thema > Kleuren, eerste kleur #6ba342.
 """,
     'author': 'Almoustafa Elhandouz (Nexu)',
     'category': 'Website/Website',
@@ -28,7 +27,6 @@ zelf kleurt mee veranderen. Verwijder je de module, dan blijft die kleur staan (
             'afs_website_style/static/src/scss/afs_style.scss',
         ],
     },
-    'post_init_hook': 'post_init_hook',
     'installable': True,
     'license': 'LGPL-3',
 }

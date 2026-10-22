@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Prijs met korting, voor de shoplijst en de productkaart van de blokken: percentage,
-         oude prijs (Voorheen) en nieuwe prijs (Nu), met een teller als promo_end ingevuld is.
-         Zonder korting alleen de prijs.
-         Variabelen: promo_old, promo_new, promo_end (optioneel), promo_price_name (optioneel). -->
+    <!-- Prijs met korting (shoplijst en blokken): -%, Voorheen, Nu en een teller.
+         Variabelen: promo_old, promo_new, promo_end en promo_price_name (beide optioneel). -->
     <template id="promo_price" name="Prijs met korting">
         <div t-if="promo_old and promo_old &gt; promo_new" class="o_promo_price d-flex flex-column align-items-start lh-sm">
             <span class="badge text-bg-danger mb-1">-<t t-out="max(1, int(round(100 * (promo_old - promo_new) / promo_old)))"/>%</span>
@@ -23,7 +21,7 @@
               t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
     </template>
 
-    <!-- Live teller tot het einde van de actie (static/src/js/promo_countdown.js). Variabele: promo_end. -->
+    <!-- Live teller tot het einde van de actie (static/src/js/promo_countdown.js) -->
     <template id="promo_countdown" name="Teller tot het einde van de actie">
         <div t-if="promo_end"
              class="o_promo_countdown small text-danger mt-1"
@@ -32,14 +30,11 @@
         </div>
     </template>
 
-    <!-- Raster met producten zoals de shop (zelfde ontwerp, kolommen en knoppen), met de prijs met korting.
-         Variabelen: grid_products (product.template), grid_id (optioneel: het eerste raster op de
-         hoofdpagina heet o_wsale_products_grid, zodat de editor er het ontwerp van de shop op kan aanpassen). -->
+    <!-- Productraster zoals de shop, met de prijs met korting. Variabelen: grid_products, grid_id (optioneel). -->
     <template id="product_grid" name="Productraster">
         <t t-set="grid_col_width" t-value="12 // ppr"/>
         <t t-set="grid_col_md" t-value="hasLeftColumn and ('g-col-md-' + str(grid_col_width)) or (((not hasLeftColumn and ppr == 4) or (opt_wsale_fullwidth and ppr > 3)) and 'g-col-md-4') or 'g-col-md-6'"/>
-        <!-- Eigen prijzen: deze producten staan niet (allemaal) in de shoplijst,
-             dus get_product_prices van de shop kent ze niet (KeyError). -->
+        <!-- eigen prijzen: get_product_prices van de shop kent deze producten niet -->
         <t t-set="grid_price_map" t-value="grid_products._get_sales_prices(website)"/>
         <section
             t-att-id="grid_id"
@@ -56,11 +51,9 @@
                      style="--o-wsale-products-grid-product-col-height: 1;">
                     <div class="o_wsale_product_grid_wrapper position-relative h-100 o_wsale_product_grid_wrapper_1_1">
                         <t t-call="website_sale.products_item">
-                            <!-- products_item vraagt zelf get_product_prices(product) op -->
                             <t t-set="get_product_prices" t-value="lambda p: grid_price_map[p.id]"/>
                             <t t-set="product_price">
                                 <div class="product_price" aria-label="Price information">
-                                    <!-- Oude prijs: die van Odoo, of anders de verkoopprijs. Geen teller in de lijst. -->
                                     <t t-call="website_sale_discounted_products.promo_price">
                                         <t t-set="promo_old" t-value="template_price_vals.get('base_price') or product.list_price"/>
                                         <t t-set="promo_new" t-value="template_price_vals['price_reduce']"/>
@@ -76,16 +69,10 @@
         </section>
     </template>
 
-    <!-- /shop.
-         Hoofdpagina (afs_sections, zie controllers/shop.py): bovenaan de producten in actie (Lopende acties,
-         of "Promoties" zonder categorie met het vinkje), daaronder een blok per categorie met haar producten.
-         De gewone lijst en de pagina's vallen dan weg.
-         Met een categorie, zoekterm of filter: de gewone lijst zonder de producten in actie, en die in een
-         blok onderaan. De categorie Lopende acties zelf toont de producten in actie (zonder blok onderaan). -->
+    <!-- /shop. Hoofdpagina: blokken (afs_sections, controllers/shop.py) in plaats van de lijst en de pagina's.
+         Met een categorie, zoekterm of filter: de lijst, met de producten in actie in een blok onderaan. -->
     <template id="promotions_block" inherit_id="website_sale.products">
 
-        <!-- Promoproducten ophalen vóór de productlijst, zodat de melding
-             "geen producten" hieronder weet of er promoties zijn. -->
         <xpath expr="//div[hasclass('o_wsale_products_grid_table_wrapper')]" position="before">
             <t t-set="promo_products" t-value="not afs_sections and not afs_is_promotions_page and request.env['product.template']._get_promo_products()"/>
             <div t-if="afs_sections" class="o_afs_shop_sections">
@@ -101,20 +88,16 @@
             </div>
         </xpath>
 
-        <!-- De gewone lijst niet op de hoofdpagina (daar staan de blokken) -->
         <xpath expr="//div[hasclass('o_wsale_products_grid_table_wrapper')]" position="attributes">
             <attribute name="t-if">products and not afs_sections</attribute>
         </xpath>
 
-        <!-- "Geen producten" alleen tonen als er ook geen promoties of blokken zijn
-             (bv. een categorie met alleen promoproducten). -->
+        <!-- "Geen producten" alleen als er ook geen promoties of blokken zijn -->
         <xpath expr="//div[hasclass('o_wsale_products_grid_table_wrapper')]/following-sibling::div[@t-else][1]" position="attributes">
             <attribute name="t-else"/>
             <attribute name="t-elif">not promo_products and not afs_sections</attribute>
         </xpath>
 
-        <!-- Het blok met de producten in actie onderaan (categorie, zoekterm of filter).
-             Het draagt de naam van de categorie met het vinkje (bv. Lopende acties), anders "Promoties". -->
         <xpath expr="//div[@id='o_wsale_pager']" position="before">
             <div t-if="promo_products" class="mt-4 mb-4">
                 <h1 class="fs-3 mt-5 mb-3" t-out="afs_promo_title or 'Promoties'"/>
@@ -124,42 +107,38 @@
             </div>
         </xpath>
 
-        <!-- Geen pagina's op de hoofdpagina: de blokken tonen alles -->
         <xpath expr="//div[@id='o_wsale_pager']" position="attributes">
             <attribute name="t-if">not afs_sections</attribute>
         </xpath>
 
     </template>
 
-    <!-- Categorietabs op de hoofdpagina: springen naar het blok van de categorie (#anker)
-         in plaats van een nieuwe pagina te openen. Een categorie zonder blok opent haar pagina. -->
+    <!-- Categorietabs op de hoofdpagina springen naar het blok van de categorie -->
     <template id="filmstrip_section_anchors" inherit_id="website_sale.filmstrip_categories">
         <xpath expr="//a[hasclass('o_wsale_filmstrip_link')]" position="attributes">
             <attribute name="t-att-href">('#' + afs_section_anchors[c.id]) if afs_section_anchors and c.id in afs_section_anchors else keep('%s/category/%s' % (shop_path, slug(c)))</attribute>
         </xpath>
     </template>
 
-    <!-- Productpagina bij een korting: Normale prijs (doorstreept), Actieprijs en Je bespaart met het
-         percentage, daaronder hoe lang de actie nog loopt. Niet bij producten met varianten: daar
-         blijft Odoo's eigen weergave. -->
+    <!-- Productpagina bij een korting: Normale prijs, Actieprijs, Je bespaart en hoe lang de actie loopt.
+         Niet bij producten met varianten. Oude prijs: die van Odoo, anders de verkoopprijs.
+         Odoo's eigen prijs blijft staan (verborgen bij een korting), zodat een update van Odoo hier niets breekt. -->
     <template id="product_price_promo" inherit_id="website_sale.product_price">
 
-        <!-- Is er een korting? Oude prijs: die van Odoo, of anders de verkoopprijs
-             (Odoo geeft bij o.a. een vaste prijsregel geen oude prijs mee). -->
         <xpath expr="//div[@name='product_price_container']" position="before">
             <t t-set="promo_old" t-value="max(combination_info['list_price'] or 0, product.list_price or 0)"/>
             <t t-set="promo_show" t-value="not product.has_configurable_attributes and promo_old &gt; combination_info['price']"/>
             <t t-set="promo_end" t-value="combination_info.get('discount_end_date')"/>
         </xpath>
 
-        <!-- Bij een korting: het prijsblok links uitgelijnd -->
-        <xpath expr="//div[@name='product_price_container']" position="attributes">
-            <attribute name="class"/>
-            <attribute name="t-attf-class">css_editable_mode_hidden d-flex gap-2 flex-wrap h5 mb-0 text-wrap {{'flex-column align-items-start' if promo_show else 'align-items-baseline justify-content-end'}}</attribute>
+        <!-- eerst Odoo's prijs verbergen bij een korting, dan de tabel ervoor zetten (met haar eigen oe_price) -->
+        <xpath expr="//span[hasclass('oe_price')]" position="attributes">
+            <attribute name="t-if">not promo_show</attribute>
         </xpath>
-
-        <!-- Prijs. Onze elementen staan los van Odoo's script dat de prijs bijwerkt (.oe_price). -->
-        <xpath expr="//span[hasclass('oe_price')]" position="replace">
+        <xpath expr="//span[@name='product_list_price']" position="attributes">
+            <attribute name="t-if">not promo_show</attribute>
+        </xpath>
+        <xpath expr="//span[hasclass('oe_price')]" position="before">
             <div t-if="promo_show" class="o_promo_table">
                 <span class="o_promo_label">Normale prijs</span>
                 <span class="o_promo_old_price text-muted"
@@ -178,23 +157,8 @@
                     <span class="badge text-bg-danger o_promo_badge">−<t t-out="max(1, int(round(100 * (promo_old - combination_info['price']) / promo_old)))"/>%</span>
                 </span>
             </div>
-            <span t-else="" class="oe_price"
-                  style="white-space: nowrap;"
-                  t-out="combination_info['price']"
-                  t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
         </xpath>
 
-        <!-- Odoo's eigen oude prijs alleen tonen als wij geen korting tonen -->
-        <xpath expr="//span[@name='product_list_price']" position="replace">
-            <span t-if="not promo_show"
-                  t-attf-class="text-muted oe_default_price mb-0 h6 {{'' if combination_info['has_discounted_price'] else 'd-none'}}"
-                  style="text-decoration: line-through; white-space: nowrap;"
-                  t-out="combination_info['list_price']"
-                  t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"
-                  name="product_list_price"/>
-        </xpath>
-
-        <!-- Hoe lang de actie nog loopt: "Actie loopt nog 5 dagen" (static/src/js/promo_countdown.js) -->
         <xpath expr="//div[@name='product_price_container']" position="after">
             <div t-if="promo_show and promo_end"
                  class="o_promo_countdown o_promo_countdown_page small mt-2"

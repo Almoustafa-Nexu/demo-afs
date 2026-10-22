@@ -4,8 +4,8 @@ from odoo import api, fields, models
 class ProductPricelistItem(models.Model):
     _inherit = 'product.pricelist.item'
 
-    # Een actie aanmaken, wijzigen of verwijderen werkt meteen door in de webshop.
-    # Een actie die afloopt (de tijd verstrijkt) vangt de geplande taak op.
+    # Een actie aanmaken, wijzigen of verwijderen werkt meteen door in de webshop;
+    # een actie die afloopt, vangt de geplande taak op.
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -25,24 +25,18 @@ class ProductPricelistItem(models.Model):
 
     @api.model
     def _get_actions(self):
-        """Alle acties: prijsregels met een begin- én einddatum, ook afgelopen of geplande.
-
-        Een regel zonder datums (een vaste korting) is geen actie.
-        """
+        """Acties: prijsregels met een begin- en einddatum (ook afgelopen of gepland)."""
         return self.sudo().search([
-            ('pricelist_id.active', '=', True),
-            ('date_start', '!=', False),
-            ('date_end', '!=', False),
+            ('pricelist_id.active', '=', True), ('date_start', '!=', False), ('date_end', '!=', False),
         ])
 
     @api.model
     def _get_running_actions(self):
-        """Acties die nu lopen."""
         now = fields.Datetime.now()
         return self._get_actions().filtered(lambda item: item.date_start <= now <= item.date_end)
 
     def _get_product_templates(self):
-        """Producten waarop deze prijsregels van toepassing zijn."""
+        """Producten waarop deze prijsregels gelden."""
         Template = self.env['product.template'].sudo()
         templates = Template.browse()
         for item in self:
@@ -52,6 +46,6 @@ class ProductPricelistItem(models.Model):
                 templates |= item.product_tmpl_id
             elif item.applied_on == '2_product_category':
                 templates |= Template.search([('categ_id', 'child_of', item.categ_id.id)])
-            else:  # '3_global': alle producten
+            else:  # 3_global
                 templates |= Template.search([('sale_ok', '=', True)])
         return templates

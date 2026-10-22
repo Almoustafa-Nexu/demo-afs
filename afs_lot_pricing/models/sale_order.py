@@ -1,12 +1,64 @@
 from collections import defaultdict
 
+from markupsafe import Markup
+
 from odoo import api, fields, models
 
 from .product_pricelist import _per_uom, source_label
+from .product_template import _pieces, order_item
 
 
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
+
+    afs_held_by = fields.Html(string="Vastgehouden door", compute='_compute_afs_held_by', sanitize=False)
+
+    @api.depends('state', 'warehouse_id', 'order_line.afs_lot_id', 'order_line.afs_presale_line_id',
+                 'order_line.product_uom_qty')
+    def _compute_afs_held_by(self):
+        for order in self:
+            order.afs_held_by = order._afs_held_by_html() or False
+
+    def _afs_held_by_html(self):
+        """Melding bovenaan een offerte met stuks op "Nog niet op voorraad": wie de partijen vasthoudt, met een link.
+        Volgt het formulier meteen (een partij kiezen doet ze verdwijnen); nieuwe regels tellen pas na Opslaan."""
+        cart = self.website_id and self.state == 'draft'  # een winkelwagen wordt pas verdeeld bij het afrekenen
+        if not self._origin.id or self.state not in ('draft', 'sent') or not self.warehouse_id or cart:
+            return ''
+        rest = self.order_line.filtered(lambda l: l._origin.id and l._afs_can_split()
+                                        and not (l.afs_lot_id or l.afs_presale_line_id))
+        html, waiting = Markup(''), False
+        for product in rest.product_id:
+            lines = rest.filtered(lambda l: l.product_id == product)
+            qty = _pieces(sum(lines.mapped('product_uom_qty')))
+            template = product.product_tmpl_id
+            taken = self.order_line._afs_chosen_qty(product, only_chosen=False)
+            if sum(lines[0].with_context(afs_taken=taken)._afs_lot_free().values()) > 0:
+                html += Markup('<p class="mb-2"><strong>%s</strong>: %s staan op Nog niet op voorraad, maar er is nu vrije '
+                               'voorraad. Klik op <strong>Prijzen bijwerken</strong>, dan krijgen ze hun partij.</p>') % (
+                    product.display_name, qty)
+                continue
+            waiting = True
+            holders = template._afs_holders(self.warehouse_id)
+            holders.pop(self._origin, None)
+            html += Markup('<p class="mb-1"><strong>%s</strong>: %s staan op Nog niet op voorraad (voorlopige prijs). %s</p>') % (
+                product.display_name, qty, 'De partijen op voorraad zijn al genomen door:' if holders else 'Er is geen vrije voorraad.')
+            if holders:
+                html += Markup('<ul class="mb-1">%s</ul>') % Markup('').join(
+                    order_item(o, _pieces(q), 'bevestigd, gereserveerd' if confirmed else 'offerte, nog niet bevestigd')
+                    for o, (q, confirmed) in sorted(holders.items(), key=lambda row: row[0].id))
+            if template._afs_buys_automatically(self.warehouse_id):
+                html += Markup('<p class="mb-2">Bevestig je deze offerte, dan regelt Odoo die %s zelf: uit voorraad die '
+                               'nog niet gereserveerd is, uit een voorverkoop, of met een inkoop (Aanvullen op order).</p>') % qty
+            else:
+                html += Markup('<p class="mb-2">Odoo koopt dit product niet vanzelf in: <a href="/odoo/action-purchase.'
+                               'purchase_rfq/new" target="_blank">koop de %s in</a>, of zet op het product de route '
+                               'Aanvullen op order (MTO).</p>') % qty
+        if waiting:
+            html += Markup('<p class="mb-0">Dat is in orde: de factuur rekent de prijs van de partij die echt geleverd wordt. '
+                           'Moet deze offerte toch de partijen van een andere bestelling krijgen (bv. een testorder): '
+                           'annuleer die bestelling en klik hier op Prijzen bijwerken.</p>')
+        return html
 
     def _create_invoices(self, grouped=False, final=False, date=None):
         moves = super()._create_invoices(grouped=grouped, final=final, date=date)
@@ -33,46 +85,45 @@ class SaleOrder(models.Model):
         return qty + template._afs_presale_free_qty(warehouse, product)
 
     def _afs_summary_rows(self, tax_included=False):
-        """Overzicht in de webshop: (regel, partij of False) per rij; een regel met prijs per partij krijgt een rij
-        per partij."""
+        """Overzicht in de webshop: (regel, partij of False), een rij per partij."""
         rows = []
         for line in self.website_order_line:
             rows += [(line, part) for part in line._afs_lot_breakdown(tax_included)] or [(line, False)]
         return rows
 
     def _afs_split_per_lot(self, products=None, placing=False):
-        """Een orderregel per partij (de oudste eerst), met de echte prijs van die partij, zoals op de factuur.
-
-        De winkelwagen blijft een regel per product, met de verdeling eronder. Bij het afrekenen of bevestigen
-        (`placing`) wordt ze verdeeld; wat al verdeeld is, blijft dan zoals het is.
-        """
+        """Een orderregel per partij met de echte prijs van die partij. De winkelwagen blijft een regel per product;
+        bij afrekenen of bevestigen (`placing`) wordt ze verdeeld, wat al verdeeld is blijft dan zoals het is."""
         for order in self:
             cart = bool(order.website_id) and order.state == 'draft'
             if order.state not in ('draft', 'sent') or (cart and not placing):
                 continue
             lines = order.order_line.filtered(
                 lambda l: l._afs_can_split() and (products is None or l.product_id in products))
+            lines.filtered('afs_lot_fixed')._afs_fit_chosen_lot()
             for product in lines.product_id:
-                group = lines.filtered(lambda l: l.product_id == product)
-                if not (placing and all(group.mapped('afs_split'))):
+                # verdelen kan regels van een vorig product verwijderen (bv. bij een kopie)
+                group = (lines.exists() | order.order_line).filtered(
+                    lambda l: l.product_id == product and l._afs_can_split() and not l.afs_lot_fixed)
+                if group and not (placing and all(group.mapped('afs_split'))):
                     order._afs_split_product(group, all_quoted=cart)
 
     def _afs_split_product(self, lines, all_quoted=False):
-        """Verdeel de regels van een product opnieuw over de partijen: bestaande regels worden hergebruikt,
-        wat te veel is, verdwijnt. Bestellingen die eerder binnenkwamen, krijgen de oudste stuks; bij het
-        afrekenen (`all_quoted`) tellen alle bestellingen mee, zoals in de winkelwagen."""
+        """Verdeel de regels van een product opnieuw over de partijen (bestaande regels hergebruikt, de rest weg).
+        Eerdere bestellingen krijgen de oudste stuks; bij het afrekenen (`all_quoted`) tellen alle bestellingen mee."""
         self.ensure_one()
         lines = lines.sorted(lambda l: (l.sequence, l.id))
         first, product = lines[0], lines[0].product_id
         total = sum(lines.mapped('product_uom_qty'))
         if product.uom_id.compare(total, 0) <= 0:
-            return  # aantal 0 (of minder): de regel blijft zoals AFS ze zette
+            return  # aantal 0 of minder: de regel blijft zoals AFS ze zette
         date = first._get_order_date()
         rule = self.env['product.pricelist.item'].browse(
             self.pricelist_id._get_product_rule(product, quantity=total, uom=product.uom_id, date=date))
         if not rule._afs_lot_mode(product):
             return
-        context = dict(first._get_product_price_context(), afs_sale_order_id=self.id)
+        context = dict(first._get_product_price_context(), afs_sale_order_id=self.id,
+                       afs_taken=self.order_line._afs_chosen_qty(product))
         context.pop('afs_sale_line_id', None)
         if not all_quoted:
             context['afs_quoted_before'] = (self.date_order, self.id)
@@ -80,19 +131,18 @@ class SaleOrder(models.Model):
                                     self.currency_id or self.company_id.currency_id, show_discount=False)
         split = len(parts) > 1 or bool(parts[0]['source'])
 
-        def line_vals(part):
-            source = part['source']
+        def line_vals(source, qty):
             return {
-                'product_uom_qty': part['qty'],
+                'product_uom_qty': qty,
                 'afs_split': split,
                 'afs_lot_id': source.id if source and source._name == 'stock.lot' else False,
                 'afs_presale_line_id': source.id if source and source._name == 'purchase.order.line' else False,
             }
 
-        plan = [line_vals(part) for part in parts]
+        plan = [line_vals(part['source'], part['qty']) for part in parts]
         current = [(l.product_uom_qty, l.afs_split, l.afs_lot_id.id, l.afs_presale_line_id.id) for l in lines]
         if current == [tuple(vals.values()) for vals in plan]:
-            return  # niets veranderd
+            return
         keep = self.env['sale.order.line']
         for index, vals in enumerate(plan):
             if index < len(lines):
@@ -110,6 +160,9 @@ class SaleOrderLine(models.Model):
 
     afs_split = fields.Boolean(string="Regel per partij", copy=False)
     afs_lot_id = fields.Many2one('stock.lot', string="Partij", copy=False, index='btree_not_null')
+    afs_lot_fixed = fields.Boolean(string="Partij met de hand gekozen", copy=False)
+    afs_lot_choices = fields.Many2many('stock.lot', string="Vrije partijen", compute='_compute_afs_lot_choices',
+                                       compute_sudo=True)
     afs_presale_line_id = fields.Many2one('purchase.order.line', string="Voorverkoop", copy=False,
                                           index='btree_not_null')
 
@@ -121,7 +174,8 @@ class SaleOrderLine(models.Model):
         return lines
 
     def write(self, vals):
-        if self.env.context.get('afs_no_split') or not {'product_uom_qty', 'product_id', 'product_uom_id'} & set(vals):
+        if self.env.context.get('afs_no_split') or not {'product_uom_qty', 'product_id', 'product_uom_id',
+                                                         'afs_lot_id'} & set(vals):
             return super().write(vals)
         products = self.product_id
         res = super().write(vals)
@@ -138,26 +192,69 @@ class SaleOrderLine(models.Model):
                 order._afs_split_per_lot(product)
         return res
 
-    def _afs_waiting_qty(self):
-        """Stuks van deze regel die nog naar de apotheek moeten (open leveringen), in de eenheid van het product."""
+    # ---- Partij met de hand kiezen (backend) ----
+
+    def _afs_lot_free(self):
+        """{partij: vrij} voor deze regel: zoals de shop, zonder offertes van deze order, met wat zij al reserveerde."""
         self.ensure_one()
-        moves = self.move_ids.filtered(
-            lambda m: m.state not in ('done', 'cancel') and m.location_dest_id.usage == 'customer')
-        return sum(moves.mapped('product_qty'))
+        warehouse = self.order_id.warehouse_id
+        if not (self.product_id and warehouse and self.pricelist_item_id._afs_lot_mode(self.product_id)):
+            return {}
+        template = self.product_id.product_tmpl_id.with_context(**self._get_product_price_context(),
+                                                                afs_sale_order_id=self.order_id._origin.id)
+        rows, _rest = template._afs_lot_stock(warehouse, template._afs_quoted_qty(warehouse))
+        return {lot: qty for lot, qty, _cost in rows}
+
+    @api.depends('product_id', 'order_id.warehouse_id', 'order_id.pricelist_id')
+    def _compute_afs_lot_choices(self):
+        for line in self:
+            line.afs_lot_choices = [lot.id for lot in line._afs_lot_free()]
+
+    @api.onchange('afs_lot_id')
+    def _onchange_afs_lot_id(self):
+        """Partij gekozen: meteen haar prijs en korting, en bij Opslaan blijft ze. Leeg: weer automatisch verdeeld."""
+        if not self.product_id or not (self.afs_lot_id or self.afs_lot_fixed):
+            return
+        self.update({'afs_lot_fixed': bool(self.afs_lot_id), 'afs_split': bool(self.afs_lot_id),
+                     'afs_presale_line_id': False})
+        self._afs_reprice()
+
+    def _afs_chosen_qty(self, product, only_chosen=True):
+        """{partij id: stuks} op deze regels (standaard alleen de met de hand gekozen): die zijn niet meer vrij."""
+        taken = {}
+        for line in self.filtered(lambda l: l.afs_lot_id and l.product_id == product and (l.afs_lot_fixed or not only_chosen)):
+            taken[line.afs_lot_id.id] = taken.get(line.afs_lot_id.id, 0.0) + line.product_uom_qty
+        return taken
+
+    def _afs_fit_chosen_lot(self):
+        """Een gekozen partij krijgt hoogstens wat er vrij is; de rest gaat naar een nieuwe regel die automatisch
+        verdeeld wordt. Is de partij helemaal op, dan wordt de regel weer automatisch."""
+        for line in self.sorted(lambda l: (l.sequence, l.id)):
+            free = line._afs_lot_free().get(line.afs_lot_id, 0.0)
+            free -= line.order_id.order_line._afs_chosen_qty(line.product_id).get(line.afs_lot_id.id, 0.0) - line.product_uom_qty
+            auto = {'afs_lot_fixed': False, 'afs_split': False, 'afs_lot_id': False}
+            if line.product_id.uom_id.compare(free, 0) <= 0:
+                line.with_context(afs_no_split=True).write(auto)
+            elif line.product_id.uom_id.compare(line.product_uom_qty, free) > 0:
+                line.with_context(afs_no_split=True).copy(dict(auto, order_id=line.order_id.id,
+                                                               product_uom_qty=line.product_uom_qty - free))
+                line.with_context(afs_no_split=True).write({'product_uom_qty': free})
+                line._afs_reprice()
 
     def _afs_claimed_qty(self):
-        """Stuks van deze regel die nog met haar partij of voorverkoop rekenen, in de eenheid van het product: bij een
-        bevestigde bestelling wat nog geleverd moet worden, bij een offerte het aantal."""
+        """Stuks die nog met hun partij of voorverkoop rekenen (eenheid van het product): bij een bevestigde
+        bestelling wat nog geleverd moet worden, bij een offerte het aantal."""
         self.ensure_one()
         if self.order_id.state == 'sale':
-            return self._afs_waiting_qty()
+            moves = self.move_ids.filtered(
+                lambda m: m.state not in ('done', 'cancel') and m.location_dest_id.usage == 'customer')
+            return sum(moves.mapped('product_qty'))
         if self.order_id.state in ('draft', 'sent') and self.product_uom_id:
             return self.product_uom_id._compute_quantity(self.product_uom_qty, self.product_id.uom_id)
         return 0.0
 
     def _afs_can_split(self):
-        """Mag deze regel per partij verdeeld worden? Prijs per partij, eenheid van het product, prijs niet
-        met de hand aangepast."""
+        """Prijs per partij, eenheid van het product en prijs niet met de hand aangepast."""
         self.ensure_one()
         return bool(self.product_id and not self.display_type and not self.is_downpayment and not self.combo_item_id
                     and self.product_uom_id == self.product_id.uom_id and not self._afs_has_manual_price()
@@ -165,6 +262,12 @@ class SaleOrderLine(models.Model):
 
     def _afs_is_split(self):
         return self.afs_split and self.pricelist_item_id._afs_lot_mode(self.product_id)
+
+    def _afs_has_manual_price(self):
+        self.ensure_one()
+        currency = self.currency_id or self.company_id.currency_id
+        return bool(self.technical_price_unit) and \
+            currency.compare_amounts(self.technical_price_unit, self.price_unit) != 0
 
     def _afs_reprice(self):
         """Na het verdelen: prijsregel, prijs, korting en omschrijving opnieuw."""
@@ -178,9 +281,10 @@ class SaleOrderLine(models.Model):
         name = self.with_context(lang=self.order_id._get_lang())._get_sale_order_line_multiline_description_sale()
         return '%s\n%s' % (name, source_label(self.afs_lot_id or self.afs_presale_line_id)) if self.afs_split else name
 
+    # ---- Prijs per partij ----
+
     def _get_product_price_context(self):
-        """Voor de prijs per partij: het magazijn van de order en de regel zelf (wat ze al reserveerde, is vrij
-        voor haar)."""
+        """Het magazijn van de order en de regel zelf (wat ze al reserveerde, is vrij voor haar)."""
         res = super()._get_product_price_context()
         res['afs_order_line'] = True
         if self.order_id.warehouse_id:
@@ -202,10 +306,13 @@ class SaleOrderLine(models.Model):
             return self._afs_split_price(show_discount=False)[0]
         return super()._get_pricelist_price()
 
-    def _afs_split_price(self, show_discount):
-        """Verdeelde regel: (prijs, korting %) van haar partij, voorverkoopregel of, zonder, de voorlopige prijs."""
+    def _afs_price_args(self):
         kwargs = self._get_pricelist_kwargs()
-        currency = kwargs['currency'] or self.company_id.currency_id or self.env.company.currency_id
+        return kwargs, kwargs['currency'] or self.company_id.currency_id or self.env.company.currency_id
+
+    def _afs_split_price(self, show_discount):
+        """Verdeelde regel: (prijs, korting %) van haar partij, voorverkoopregel of de voorlopige prijs."""
+        kwargs, currency = self._afs_price_args()
         source = (self.afs_lot_id or self.afs_presale_line_id).sudo()
         if source._name == 'stock.lot':
             cost = source.with_company(self.company_id).standard_price
@@ -215,25 +322,23 @@ class SaleOrderLine(models.Model):
                                                       kwargs['quantity'], kwargs['date'], currency, show_discount)
 
     def _afs_parts(self, show_discount):
-        """Verdeling over de partijen van een regel die (nog) niet verdeeld is, zoals in de winkelwagen."""
-        kwargs = self._get_pricelist_kwargs()
-        currency = kwargs['currency'] or self.company_id.currency_id or self.env.company.currency_id
+        """Verdeling over de partijen van een (nog) niet verdeelde regel, zoals in de winkelwagen."""
+        kwargs, currency = self._afs_price_args()
         qty = self.product_uom_id._compute_quantity(self.product_uom_qty or 1.0, self.product_id.uom_id)
         return self.pricelist_item_id._afs_lot_parts(self.product_id.with_context(**self._get_product_price_context()),
                                                      qty, kwargs['date'], currency, show_discount)
 
-    # Korting van de partij zichtbaar (Verkoop > Configuratie > Instellingen > Kortingen)
+    # ---- Korting zichtbaar (Verkoop > Instellingen > Kortingen) ----
 
     def _afs_show_lot_discount(self):
-        """Kortingen staat aan en de prijs van deze regel gaat per partij."""
         self.ensure_one()
         rule = self.pricelist_item_id
         return bool(self.product_id and not self.display_type and not self.combo_item_id and rule
                     and rule._is_discount_feature_enabled() and rule._afs_lot_mode(self.product_id))
 
     def _afs_shown_line(self):
-        """(prijs, korting %) met Kortingen aan. Een niet verdeelde regel uit een partij toont die partij; uit meer
-        partijen het gemiddelde zonder korting, zodat het bedrag klopt met de verdeling eronder."""
+        """(prijs, korting %): een regel uit een partij toont die partij; uit meer partijen het gemiddelde zonder
+        korting, zodat het bedrag klopt met de verdeling eronder."""
         self.ensure_one()
         if self._afs_is_split():
             return self._afs_split_price(show_discount=True)
@@ -257,8 +362,7 @@ class SaleOrderLine(models.Model):
                 line.discount = line.with_company(line.company_id)._afs_shown_line()[1]
 
     def _afs_lot_breakdown(self, tax_included=False):
-        """Voor de webshop: per partij het aantal, de prijs, de korting, het bedrag en een korte noot voor de
-        apotheek (voorverkoop, nog niet op voorraad)."""
+        """Webshop: per partij aantal, prijs, korting, bedrag en een noot (voorverkoop, nog niet op voorraad)."""
         self.ensure_one()
         rule = self.pricelist_item_id
         if self.product_uom_id != self.product_id.uom_id or not rule._afs_lot_mode(self.product_id):
@@ -273,25 +377,18 @@ class SaleOrderLine(models.Model):
         display = 'total_included' if tax_included else 'total_excluded'
         for part in parts:
             source = part['source']
-            part['note'] = ('voorverkoop' if source._name == 'purchase.order.line' else '') if source else \
-                'nog niet op voorraad'
+            if not source:
+                part['note'] = 'nog niet op voorraad'
+            else:
+                part['note'] = 'voorverkoop' if source._name == 'purchase.order.line' else ''
             for key in ('price', 'amount'):
                 part[key] = self.tax_ids.compute_all(part[key], self.currency_id, 1, self.product_id,
                                                      self.order_partner_id)[display]
         return parts
 
-    def _afs_has_manual_price(self):
-        """Iemand paste de prijs met de hand aan: die prijs blijft dan gelden."""
-        self.ensure_one()
-        currency = self.currency_id or self.company_id.currency_id
-        return bool(self.technical_price_unit) and \
-            currency.compare_amounts(self.technical_price_unit, self.price_unit) != 0
-
     def _afs_net_delivered_per_lot(self):
-        """Netto geleverd per partij (leveringen min retours), in de eenheid van het product.
-
-        :return: ({partij: aantal}, partijen in de volgorde van levering)
-        """
+        """Netto geleverd per partij (leveringen min retours), eenheid van het product.
+        :return: ({partij: aantal}, partijen in de volgorde van levering)"""
         self.ensure_one()
         qty, lots = defaultdict(float), []
         move_lines = self.move_ids.filtered(lambda m: m.state == 'done').move_line_ids
@@ -299,8 +396,7 @@ class SaleOrderLine(models.Model):
             to_customer, from_customer = ml.location_dest_id.usage == 'customer', ml.location_id.usage == 'customer'
             if not ml.lot_id or to_customer == from_customer:
                 continue
-            sign = 1 if to_customer else -1  # levering of retour
-            qty[ml.lot_id] += sign * ml.product_uom_id._compute_quantity(ml.quantity, ml.product_id.uom_id)
+            qty[ml.lot_id] += ml.quantity_product_uom if to_customer else -ml.quantity_product_uom
             if ml.lot_id not in lots:
                 lots.append(ml.lot_id)
         return qty, lots
